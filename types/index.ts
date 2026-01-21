@@ -4,8 +4,11 @@
 export interface DamageAnalysis {
   damage_type: string;
   severity_score_1_to_10: number;
-  estimated_trade_needed: string;
+  cost_estimate_min: number;
+  cost_estimate_max: number;
+  cost_reasoning: string;
   summary_for_homeowner: string;
+  suggested_project_name: string;
 }
 
 /**
@@ -25,6 +28,54 @@ export interface UploadStatus {
   progress: number;
   error: string | null;
   url: string | null;
+}
+
+/**
+ * Database types
+ */
+export interface Contractor {
+  id: string;
+  email: string;
+  business_name: string | null;
+  created_at: string;
+}
+
+export interface Project {
+  id: string;
+  contractor_id: string;
+  customer_name: string;
+  project_name: string;
+  status: "pending" | "analyzed" | "quoted" | "completed";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectMedia {
+  id: string;
+  project_id: string;
+  file_url: string;
+  file_type: "image" | "video";
+  created_at: string;
+}
+
+export interface ProjectAnalysis {
+  id: string;
+  project_id: string;
+  damage_type: string;
+  severity_score: number;
+  cost_estimate_min: number;
+  cost_estimate_max: number;
+  cost_reasoning: string;
+  summary: string;
+  created_at: string;
+}
+
+export interface UploadLink {
+  id: string;
+  contractor_id: string;
+  token: string;
+  expires_at: string | null;
+  created_at: string;
 }
 
 /**

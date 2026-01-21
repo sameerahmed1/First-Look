@@ -9,7 +9,7 @@ import {
 } from "@/lib/gemini";
 import type { AnalysisResponse, DamageAnalysis } from "@/types";
 
-const SYSTEM_PROMPT = `You are a veteran general contractor with 30+ years of experience in residential and commercial repairs.
+const SYSTEM_PROMPT = `You are a veteran general contractor with 30+ years of experience in residential and commercial repairs. You have extensive knowledge of labor and material costs across the United States.
 
 Analyze this image or video carefully. Identify any visible damage, wear, or issues that need repair.
 
@@ -17,22 +17,35 @@ You MUST respond with ONLY a valid JSON object (no markdown, no code blocks, no 
 {
   "damage_type": "Brief description of the type of damage observed (e.g., 'Water damage to ceiling', 'Cracked foundation', 'Rotting wood siding')",
   "severity_score_1_to_10": <number from 1-10 where 1 is cosmetic and 10 is structural emergency>,
-  "estimated_trade_needed": "The trade professional needed (e.g., 'Plumber', 'Electrician', 'General Contractor', 'Roofer', 'HVAC Technician')",
-  "summary_for_homeowner": "A friendly 2-3 sentence explanation for the homeowner about what you see, what might have caused it, and general urgency level"
+  "cost_estimate_min": <minimum estimated repair cost in USD as a number, no dollar sign>,
+  "cost_estimate_max": <maximum estimated repair cost in USD as a number, no dollar sign>,
+  "cost_reasoning": "2-3 sentences explaining what factors into your cost estimate: materials needed, labor hours, complexity, and any assumptions you're making about the scope",
+  "summary_for_homeowner": "A friendly 2-3 sentence explanation for the homeowner about what you see, what might have caused it, and general urgency level. Do NOT mention specific costs here.",
+  "suggested_project_name": "A short, descriptive project name (3-5 words) like 'Kitchen Water Damage Repair' or 'Basement Foundation Crack'"
 }
+
+Cost estimation guidelines:
+- For minor repairs (severity 1-3): typically $100-$1,000
+- For moderate repairs (severity 4-6): typically $1,000-$5,000
+- For major repairs (severity 7-8): typically $5,000-$15,000
+- For severe/structural (severity 9-10): typically $15,000+
+- Always provide a range (min to max) to account for regional variation and hidden issues
 
 If you cannot identify any damage or the image/video is unclear, still return the JSON with:
 - damage_type: "No visible damage detected" or "Unable to assess - image unclear"
 - severity_score_1_to_10: 0
-- estimated_trade_needed: "None required" or "Professional inspection recommended"
-- summary_for_homeowner: An appropriate explanation`;
+- cost_estimate_min: 0
+- cost_estimate_max: 0
+- cost_reasoning: "No repair costs applicable" or "Unable to estimate without clearer images"
+- summary_for_homeowner: An appropriate explanation
+- suggested_project_name: "New Assessment Request"`;
 
 /**
  * Analyze media (image or video) using Gemini 2.5 Pro
  * This is the core "Eyes" of the First Look app
  *
  * @param fileUrl - Public URL of the uploaded image/video from Supabase Storage
- * @returns Analysis result with damage assessment
+ * @returns Analysis result with damage assessment and cost estimate
  */
 export async function analyzeMedia(fileUrl: string): Promise<AnalysisResponse> {
   try {
@@ -112,8 +125,11 @@ export async function analyzeMedia(fileUrl: string): Promise<AnalysisResponse> {
     if (
       typeof analysis.damage_type !== "string" ||
       typeof analysis.severity_score_1_to_10 !== "number" ||
-      typeof analysis.estimated_trade_needed !== "string" ||
-      typeof analysis.summary_for_homeowner !== "string"
+      typeof analysis.cost_estimate_min !== "number" ||
+      typeof analysis.cost_estimate_max !== "number" ||
+      typeof analysis.cost_reasoning !== "string" ||
+      typeof analysis.summary_for_homeowner !== "string" ||
+      typeof analysis.suggested_project_name !== "string"
     ) {
       return {
         success: false,
@@ -125,6 +141,13 @@ export async function analyzeMedia(fileUrl: string): Promise<AnalysisResponse> {
     analysis.severity_score_1_to_10 = Math.max(
       0,
       Math.min(10, Math.round(analysis.severity_score_1_to_10))
+    );
+
+    // Ensure cost estimates are non-negative
+    analysis.cost_estimate_min = Math.max(0, Math.round(analysis.cost_estimate_min));
+    analysis.cost_estimate_max = Math.max(
+      analysis.cost_estimate_min,
+      Math.round(analysis.cost_estimate_max)
     );
 
     return {
@@ -189,7 +212,7 @@ export async function analyzeMultipleMedia(
     // Enhanced prompt for multiple images
     const multiImagePrompt = `${SYSTEM_PROMPT}
 
-You are analyzing ${fileUrls.length} images/videos of the same repair issue from different angles. Consider all views when making your assessment and provide a comprehensive analysis.`;
+You are analyzing ${fileUrls.length} images/videos of the same repair issue from different angles. Consider all views when making your assessment and provide a comprehensive analysis with accurate cost estimates.`;
 
     // Send all media to Gemini
     const result = await geminiModel.generateContent([
@@ -213,9 +236,15 @@ You are analyzing ${fileUrls.length} images/videos of the same repair issue from
 
     const analysis: DamageAnalysis = JSON.parse(jsonString);
 
+    // Clamp and validate values
     analysis.severity_score_1_to_10 = Math.max(
       0,
       Math.min(10, Math.round(analysis.severity_score_1_to_10))
+    );
+    analysis.cost_estimate_min = Math.max(0, Math.round(analysis.cost_estimate_min));
+    analysis.cost_estimate_max = Math.max(
+      analysis.cost_estimate_min,
+      Math.round(analysis.cost_estimate_max)
     );
 
     return {

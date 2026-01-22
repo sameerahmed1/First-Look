@@ -79,9 +79,22 @@ export function DashboardClient({
 
   const handleCreateLink = async () => {
     setIsCreatingLink(true);
-    await createUploadLink(linkLabel || undefined);
-    setLinkLabel("");
-    setIsCreatingLink(false);
+    try {
+      const result = await createUploadLink(linkLabel || undefined);
+
+      if (!result.success) {
+        console.error('Failed to create upload link:', result.error);
+        alert(`Failed to create upload link: ${result.error}`);
+      } else {
+        setLinkLabel("");
+        console.log('Upload link created successfully:', result.uploadUrl);
+      }
+    } catch (error) {
+      console.error('Error creating upload link:', error);
+      alert('An unexpected error occurred while creating the upload link');
+    } finally {
+      setIsCreatingLink(false);
+    }
   };
 
   const handleCopyLink = async (token: string) => {
@@ -93,14 +106,38 @@ export function DashboardClient({
 
   const handleDeleteLink = async (linkId: string) => {
     if (confirm("Are you sure you want to delete this upload link?")) {
-      await deleteUploadLink(linkId);
+      try {
+        const result = await deleteUploadLink(linkId);
+
+        if (!result.success) {
+          console.error('Failed to delete upload link:', result.error);
+          alert(`Failed to delete upload link: ${result.error}`);
+        } else {
+          console.log('Upload link deleted successfully');
+        }
+      } catch (error) {
+        console.error('Error deleting upload link:', error);
+        alert('An unexpected error occurred while deleting the upload link');
+      }
     }
   };
 
   const handleDeleteProject = async (projectId: string) => {
     if (confirm("Are you sure you want to delete this project?")) {
-      await deleteProject(projectId);
-      setSelectedProject(null);
+      try {
+        const result = await deleteProject(projectId);
+
+        if (!result.success) {
+          console.error('Failed to delete project:', result.error);
+          alert(`Failed to delete project: ${result.error}`);
+        } else {
+          setSelectedProject(null);
+          console.log('Project deleted successfully');
+        }
+      } catch (error) {
+        console.error('Error deleting project:', error);
+        alert('An unexpected error occurred while deleting the project');
+      }
     }
   };
 
@@ -108,7 +145,19 @@ export function DashboardClient({
     projectId: string,
     status: "pending" | "analyzed" | "quoted" | "completed"
   ) => {
-    await updateProjectStatus(projectId, status);
+    try {
+      const result = await updateProjectStatus(projectId, status);
+
+      if (!result.success) {
+        console.error('Failed to update project status:', result.error);
+        alert(`Failed to update project status: ${result.error}`);
+      } else {
+        console.log('Project status updated successfully');
+      }
+    } catch (error) {
+      console.error('Error updating project status:', error);
+      alert('An unexpected error occurred while updating the project status');
+    }
   };
 
   const getSeverityColor = (score: number) => {

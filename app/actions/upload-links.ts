@@ -76,7 +76,8 @@ export async function getUploadLinkByToken(token: string) {
       `
       *,
       contractors (
-        business_name
+        business_name,
+        logo_url
       )
     `
     )

@@ -21,6 +21,91 @@ export interface AnalysisResponse {
 }
 
 /**
+ * ============================================================================
+ * CORE FLOW TYPES - Guided Capture Wizard & Strategic Job Brief
+ * ============================================================================
+ */
+
+/**
+ * Safety check flags from homeowner (Step B of Wizard)
+ */
+export interface SafetyChecks {
+  active_dripping: boolean;
+  gas_smell: boolean;
+  sewage_backup: boolean;
+  structural_damage: boolean;
+  electrical_sparking: boolean;
+}
+
+/**
+ * Home information from homeowner (Step D of Wizard)
+ */
+export interface HomeInfo {
+  year_built: number | null;
+  home_type: "Single Family" | "Condo" | "Townhouse" | "Multi-Family" | "Mobile Home" | "Other";
+  floors: number;
+  square_footage: number | null;
+}
+
+/**
+ * Additional context from homeowner (Step D of Wizard)
+ */
+export interface ContextInfo {
+  when_noticed: "Today" | "This week" | "This month" | "Longer" | "Unknown";
+  weather_related: boolean;
+  previous_repairs: boolean;
+  additional_notes: string;
+}
+
+/**
+ * Complete capture data from Guided Capture Wizard (stored in projects.capture_data)
+ */
+export interface CaptureData {
+  problem_type: string; // e.g., "Roof - Leak or Missing Shingles"
+  safety_checks: SafetyChecks;
+  home_info: HomeInfo;
+  context: ContextInfo;
+}
+
+/**
+ * Triage assessment from AI
+ */
+export interface Triage {
+  urgency: "Emergency" | "24-48hrs" | "Routine";
+  trade: string; // e.g., "Roofing", "Plumbing", "Electrical"
+  risk_flags: string[]; // e.g., ["Water Damage", "Potential Mold"]
+}
+
+/**
+ * Scope hypothesis item (contractor can toggle)
+ */
+export interface ScopeHypothesis {
+  item: string; // e.g., "Chimney flashing replacement"
+  selected: boolean;
+}
+
+/**
+ * Price breakdown with assumptions and variables
+ */
+export interface PriceBreakdown {
+  range_low: number;
+  range_high: number;
+  assumptions: string[]; // List of pricing assumptions
+  variables: string[]; // Factors that could change the price
+}
+
+/**
+ * Complete AI analysis for Strategic Job Brief (stored in projects.ai_analysis)
+ */
+export interface AIAnalysis {
+  summary: string; // Main takeaway from AI
+  missing_evidence: string[]; // What additional photos/info would help
+  triage: Triage;
+  scope_hypotheses: ScopeHypothesis[];
+  price_breakdown: PriceBreakdown;
+}
+
+/**
  * Upload status for tracking file upload progress
  */
 export interface UploadStatus {
@@ -37,6 +122,7 @@ export interface Contractor {
   id: string;
   email: string;
   business_name: string | null;
+  logo_url: string | null; // White labeling support
   created_at: string;
 }
 
@@ -44,8 +130,12 @@ export interface Project {
   id: string;
   contractor_id: string;
   customer_name: string;
+  customer_email: string | null;
+  customer_phone: string | null;
   project_name: string;
-  status: "pending" | "analyzed" | "quoted" | "completed";
+  status: "new" | "pending" | "analyzed" | "reviewed" | "quoted" | "completed" | "archived";
+  capture_data: CaptureData | null; // Structured homeowner input from Guided Wizard
+  ai_analysis: AIAnalysis | null; // Structured AI output for Job Brief
   created_at: string;
   updated_at: string;
 }
@@ -74,6 +164,7 @@ export interface UploadLink {
   id: string;
   contractor_id: string;
   token: string;
+  label: string | null;
   expires_at: string | null;
   created_at: string;
 }

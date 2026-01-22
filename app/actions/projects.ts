@@ -1,8 +1,9 @@
 "use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { analyzeMultipleMedia } from "./analyze-media";
+import { analyzeMultipleMedia, analyzeProjectWithContext } from "./analyze-media";
 import { revalidatePath } from "next/cache";
+import type { CaptureData } from "@/types";
 
 interface CreateProjectInput {
   contractorId: string;
@@ -140,7 +141,7 @@ export async function getProjectById(projectId: string) {
 
 export async function updateProjectStatus(
   projectId: string,
-  status: "pending" | "analyzed" | "quoted" | "completed"
+  status: string
 ) {
   const supabase = await createServerSupabaseClient();
 
@@ -168,4 +169,96 @@ export async function deleteProject(projectId: string) {
 
   revalidatePath("/dashboard");
   return { success: true };
+}
+
+/**
+ * ============================================================================
+ * CORE FLOW: Create Project with Guided Capture Wizard Data
+ * ============================================================================
+ */
+
+interface CreateProjectWithWizardInput {
+  contractorId: string;
+  uploadLinkId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  captureData: CaptureData;
+  fileUrls: string[]; // Already uploaded to Supabase Storage by client
+}
+
+export async function createProjectWithWizard(input: CreateProjectWithWizardInput) {
+  const supabase = await createServerSupabaseClient();
+
+  try {
+    // Analyze the project with full context from the wizard
+    const analysisResult = await analyzeProjectWithContext(
+      input.captureData,
+      input.fileUrls
+    );
+
+    if (!analysisResult.success || !analysisResult.data) {
+      return {
+        success: false,
+        error: analysisResult.error || "Failed to analyze project",
+      };
+    }
+
+    const aiAnalysis = analysisResult.data;
+
+    // Generate project name from problem type and AI summary
+    const projectName = `${input.captureData.problem_type} - ${input.customerName}`;
+
+    // Create the project with Core Flow fields
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .insert({
+        contractor_id: input.contractorId,
+        upload_link_id: input.uploadLinkId,
+        customer_name: input.customerName,
+        customer_email: input.customerEmail,
+        customer_phone: input.customerPhone,
+        project_name: projectName,
+        status: "new", // New projects start as "new"
+        capture_data: input.captureData,
+        ai_analysis: aiAnalysis,
+      })
+      .select()
+      .single();
+
+    if (projectError) {
+      console.error("Error creating project:", projectError);
+      return { success: false, error: projectError.message };
+    }
+
+    // Add media files to project
+    const mediaInserts = input.fileUrls.map((url) => ({
+      project_id: project.id,
+      file_url: url,
+      file_type: url.match(/\.(mp4|webm|mov)$/i) ? "video" : "image",
+    }));
+
+    const { error: mediaError } = await supabase
+      .from("project_media")
+      .insert(mediaInserts);
+
+    if (mediaError) {
+      console.error("Error adding project media:", mediaError);
+      // Don't fail the whole operation if media insert fails
+    }
+
+    revalidatePath("/dashboard");
+
+    return {
+      success: true,
+      projectId: project.id,
+      projectName: projectName,
+    };
+  } catch (error) {
+    console.error("Error in createProjectWithWizard:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "An unexpected error occurred",
+    };
+  }
 }

@@ -11,7 +11,7 @@ interface UpdateProfileInput {
 
 export async function updateProfile(input: UpdateProfileInput) {
   const supabase = await createServerSupabaseClient();
-  const { user } = await getUser();
+  const user = await getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
@@ -46,7 +46,7 @@ export async function updateProfile(input: UpdateProfileInput) {
 
 export async function getProfile() {
   const supabase = await createServerSupabaseClient();
-  const { user } = await getUser();
+  const user = await getUser();
 
   if (!user) {
     return { profile: null, error: "Not authenticated" };
@@ -80,7 +80,7 @@ export async function getProfile() {
  */
 export async function uploadLogo(formData: FormData) {
   const supabase = await createServerSupabaseClient();
-  const { user } = await getUser();
+  const user = await getUser();
 
   if (!user) {
     return { url: null, error: "Not authenticated" };

@@ -76,6 +76,9 @@ ALTER TABLE project_analysis ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Contractors can view own record" ON contractors
   FOR SELECT USING (auth.uid() = id);
 
+CREATE POLICY "Contractors can insert own record" ON contractors
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
 CREATE POLICY "Contractors can update own record" ON contractors
   FOR UPDATE USING (auth.uid() = id);
 

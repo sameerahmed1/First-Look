@@ -14,6 +14,28 @@ export async function createUploadLink(label?: string) {
     return { success: false, error: "Not authenticated" };
   }
 
+  // Ensure contractor record exists (in case the database trigger didn't fire)
+  const { error: contractorError } = await supabase
+    .from("contractors")
+    .upsert(
+      {
+        id: user.id,
+        email: user.email!,
+      },
+      {
+        onConflict: "id",
+        ignoreDuplicates: true,
+      }
+    );
+
+  if (contractorError) {
+    console.error("Error ensuring contractor exists:", contractorError);
+    return {
+      success: false,
+      error: `Failed to set up contractor account: ${contractorError.message}`,
+    };
+  }
+
   const { data, error } = await supabase
     .from("upload_links")
     .insert({

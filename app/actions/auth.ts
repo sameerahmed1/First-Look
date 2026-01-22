@@ -24,16 +24,25 @@ export async function signUp(formData: FormData) {
     return { error: error.message };
   }
 
-  // Update the contractor record with business name
+  // Ensure contractor record exists and update with business name
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user && businessName) {
+  if (user) {
+    // Use upsert to ensure the contractor record exists
     await supabase
       .from("contractors")
-      .update({ business_name: businessName })
-      .eq("id", user.id);
+      .upsert(
+        {
+          id: user.id,
+          email: user.email!,
+          business_name: businessName || null,
+        },
+        {
+          onConflict: "id",
+        }
+      );
   }
 
   redirect("/dashboard");
@@ -52,6 +61,26 @@ export async function signIn(formData: FormData) {
 
   if (error) {
     return { error: error.message };
+  }
+
+  // Ensure contractor record exists (for users created before the trigger was set up)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    await supabase
+      .from("contractors")
+      .upsert(
+        {
+          id: user.id,
+          email: user.email!,
+        },
+        {
+          onConflict: "id",
+          ignoreDuplicates: true,
+        }
+      );
   }
 
   redirect("/dashboard");

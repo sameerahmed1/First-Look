@@ -84,10 +84,22 @@ export function DashboardClient({
 
   const handleCreateLink = async () => {
     setIsCreatingLink(true);
-    await createUploadLink(linkLabel || undefined);
-    setLinkLabel("");
-    setIsCreatingLink(false);
-    router.refresh();
+    try {
+      const result = await createUploadLink(linkLabel || undefined);
+      if (result.success) {
+        setLinkLabel("");
+        // Force a hard refresh of the page data
+        router.refresh();
+      } else {
+        console.error("Failed to create link:", result.error);
+        alert("Failed to create link. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error creating link:", error);
+      alert("An error occurred. Please try again.");
+    } finally {
+      setIsCreatingLink(false);
+    }
   };
 
   const handleCopyLink = async (token: string) => {
@@ -99,14 +111,20 @@ export function DashboardClient({
 
   const handleDeleteLink = async (linkId: string) => {
     if (confirm("Are you sure you want to delete this upload link?")) {
-      await deleteUploadLink(linkId);
+      const result = await deleteUploadLink(linkId);
+      if (result.success) {
+        router.refresh();
+      }
     }
   };
 
   const handleDeleteProject = async (projectId: string) => {
     if (confirm("Are you sure you want to delete this project?")) {
-      await deleteProject(projectId);
-      setSelectedProject(null);
+      const result = await deleteProject(projectId);
+      if (result.success) {
+        setSelectedProject(null);
+        router.refresh();
+      }
     }
   };
 
@@ -114,7 +132,10 @@ export function DashboardClient({
     projectId: string,
     status: "pending" | "analyzed" | "quoted" | "completed"
   ) => {
-    await updateProjectStatus(projectId, status);
+    const result = await updateProjectStatus(projectId, status);
+    if (result.success) {
+      router.refresh();
+    }
   };
 
   const getSeverityColor = (score: number) => {

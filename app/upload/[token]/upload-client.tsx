@@ -35,6 +35,8 @@ export function CustomerUploadClient({
   linkLabel,
 }: CustomerUploadClientProps) {
   const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
   const [uploadState, setUploadState] = useState<UploadState>({
     status: "input",
@@ -68,6 +70,8 @@ export function CustomerUploadClient({
         contractorId,
         uploadLinkId,
         customerName: customerName.trim(),
+        customerPhone: customerPhone.trim() || undefined,
+        customerAvailability: selectedDates.length > 0 ? selectedDates : undefined,
         fileUrls: uploadedUrls,
       });
 
@@ -159,6 +163,70 @@ export function CustomerUploadClient({
                 placeholder="Enter your full name"
                 disabled={uploadState.status === "processing"}
               />
+            </div>
+
+            {/* Customer Phone Input */}
+            <div className="space-y-2">
+              <label htmlFor="customerPhone" className="text-sm font-medium">
+                Phone Number
+              </label>
+              <input
+                id="customerPhone"
+                type="tel"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md bg-background"
+                placeholder="(555) 123-4567"
+                disabled={uploadState.status === "processing"}
+              />
+              <p className="text-xs text-muted-foreground">
+                Optional - helps us contact you for follow-up questions
+              </p>
+            </div>
+
+            {/* Availability Input */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                When are you available for an inspection?
+              </label>
+              <div className="space-y-2">
+                <input
+                  type="date"
+                  min={new Date().toISOString().split("T")[0]}
+                  onChange={(e) => {
+                    if (e.target.value && !selectedDates.includes(e.target.value)) {
+                      setSelectedDates([...selectedDates, e.target.value]);
+                      e.target.value = "";
+                    }
+                  }}
+                  className="w-full px-3 py-2 border rounded-md bg-background"
+                  disabled={uploadState.status === "processing"}
+                />
+                {selectedDates.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedDates.map((date) => (
+                      <div
+                        key={date}
+                        className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-md text-sm"
+                      >
+                        <span>{new Date(date + "T00:00:00").toLocaleDateString()}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedDates(selectedDates.filter((d) => d !== date))
+                          }
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Optional - select dates you're available for an on-site visit
+              </p>
             </div>
 
             {/* File Uploader */}

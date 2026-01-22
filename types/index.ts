@@ -1,14 +1,26 @@
 /**
+ * Cost breakdown for repair estimates
+ */
+export interface CostBreakdown {
+  low_estimate: number;
+  high_estimate: number;
+  variables: string[]; // Cost drivers like "Mold presence", "Source of leak access"
+  contractor_note: string; // Private note for contractor
+}
+
+/**
  * Analysis result from Gemini for damage assessment
  */
 export interface DamageAnalysis {
   damage_type: string;
   severity_score_1_to_10: number;
-  cost_estimate_min: number;
-  cost_estimate_max: number;
-  cost_reasoning: string;
+  cost_breakdown: CostBreakdown;
   summary_for_homeowner: string;
   suggested_project_name: string;
+  // Deprecated fields (kept for backward compatibility during migration)
+  cost_estimate_min?: number;
+  cost_estimate_max?: number;
+  cost_reasoning?: string;
 }
 
 /**
@@ -44,6 +56,8 @@ export interface Project {
   id: string;
   contractor_id: string;
   customer_name: string;
+  customer_phone: string | null;
+  customer_availability: string | null; // JSON array of available dates
   project_name: string;
   status: "pending" | "analyzed" | "quoted" | "completed";
   created_at: string;
@@ -65,7 +79,9 @@ export interface ProjectAnalysis {
   severity_score: number;
   cost_estimate_min: number;
   cost_estimate_max: number;
-  cost_reasoning: string;
+  cost_variables: string[] | null; // Cost drivers
+  contractor_note: string | null; // Private note for contractor
+  cost_reasoning: string; // Kept for backward compatibility
   summary: string;
   created_at: string;
 }

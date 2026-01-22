@@ -8,6 +8,8 @@ interface CreateProjectInput {
   contractorId: string;
   uploadLinkId?: string;
   customerName: string;
+  customerPhone?: string;
+  customerAvailability?: string[]; // Array of available date strings
   fileUrls: string[];
 }
 
@@ -34,6 +36,10 @@ export async function createProject(input: CreateProjectInput) {
         contractor_id: input.contractorId,
         upload_link_id: input.uploadLinkId || null,
         customer_name: input.customerName,
+        customer_phone: input.customerPhone || null,
+        customer_availability: input.customerAvailability
+          ? JSON.stringify(input.customerAvailability)
+          : null,
         project_name: analysis.suggested_project_name,
         status: "analyzed",
       })
@@ -67,9 +73,11 @@ export async function createProject(input: CreateProjectInput) {
         project_id: project.id,
         damage_type: analysis.damage_type,
         severity_score: analysis.severity_score_1_to_10,
-        cost_estimate_min: analysis.cost_estimate_min,
-        cost_estimate_max: analysis.cost_estimate_max,
-        cost_reasoning: analysis.cost_reasoning,
+        cost_estimate_min: analysis.cost_breakdown.low_estimate,
+        cost_estimate_max: analysis.cost_breakdown.high_estimate,
+        cost_variables: analysis.cost_breakdown.variables,
+        contractor_note: analysis.cost_breakdown.contractor_note,
+        cost_reasoning: analysis.cost_breakdown.variables.join(", "), // Backward compatibility
         summary: analysis.summary_for_homeowner,
       });
 

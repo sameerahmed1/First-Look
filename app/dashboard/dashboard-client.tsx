@@ -30,11 +30,16 @@ import {
   FileText,
   Image as ImageIcon,
   Video,
+  Phone,
+  MessageSquare,
+  Calendar,
 } from "lucide-react";
 
 interface Project {
   id: string;
   customer_name: string;
+  customer_phone: string | null;
+  customer_availability: string | null;
   project_name: string;
   status: string;
   created_at: string;
@@ -49,6 +54,8 @@ interface Project {
     severity_score: number;
     cost_estimate_min: number;
     cost_estimate_max: number;
+    cost_variables: string[] | null;
+    contractor_note: string | null;
     cost_reasoning: string;
     summary: string;
   }>;
@@ -426,18 +433,119 @@ export function DashboardClient({
                                       project.project_analysis[0].cost_estimate_max
                                     )}
                                   </p>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    {project.project_analysis[0].cost_reasoning}
-                                  </p>
+                                  {project.project_analysis[0].cost_variables &&
+                                    project.project_analysis[0].cost_variables.length >
+                                      0 && (
+                                      <div className="mt-2">
+                                        <p className="text-xs font-medium mb-1">
+                                          Cost Drivers:
+                                        </p>
+                                        <ul className="text-xs text-muted-foreground space-y-0.5">
+                                          {project.project_analysis[0].cost_variables.map(
+                                            (variable, idx) => (
+                                              <li key={idx} className="flex items-start">
+                                                <span className="mr-1">•</span>
+                                                <span>{variable}</span>
+                                              </li>
+                                            )
+                                          )}
+                                        </ul>
+                                      </div>
+                                    )}
                                 </div>
+
+                                {project.project_analysis[0].contractor_note && (
+                                  <div className="p-3 rounded-md border-2 border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900">
+                                    <p className="text-xs font-medium text-amber-900 dark:text-amber-200 mb-1 flex items-center gap-1">
+                                      <AlertTriangle className="w-3 h-3" />
+                                      Contractor Note (Private)
+                                    </p>
+                                    <p className="text-sm text-amber-800 dark:text-amber-300">
+                                      {project.project_analysis[0].contractor_note}
+                                    </p>
+                                  </div>
+                                )}
 
                                 <div className="p-3 rounded-md border bg-card">
                                   <p className="text-xs text-muted-foreground mb-1">
-                                    Summary
+                                    Summary for Homeowner
                                   </p>
                                   <p className="text-sm">
                                     {project.project_analysis[0].summary}
                                   </p>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Customer Contact Info */}
+                            {(project.customer_phone || project.customer_availability) && (
+                              <div className="p-3 rounded-md border bg-card">
+                                <p className="text-xs text-muted-foreground mb-2">
+                                  Customer Contact
+                                </p>
+                                <div className="space-y-2">
+                                  {project.customer_phone && (
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <Phone className="w-4 h-4 text-muted-foreground" />
+                                        <span className="text-sm font-medium">
+                                          {project.customer_phone}
+                                        </span>
+                                      </div>
+                                      <div className="flex gap-1">
+                                        <a
+                                          href={`tel:${project.customer_phone}`}
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8"
+                                          >
+                                            <Phone className="w-3 h-3 mr-1" />
+                                            Call
+                                          </Button>
+                                        </a>
+                                        <a
+                                          href={`sms:${project.customer_phone}`}
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8"
+                                          >
+                                            <MessageSquare className="w-3 h-3 mr-1" />
+                                            Text
+                                          </Button>
+                                        </a>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {project.customer_availability && (
+                                    <div>
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                                        <span className="text-xs font-medium">
+                                          Available Dates:
+                                        </span>
+                                      </div>
+                                      <div className="flex flex-wrap gap-1 ml-6">
+                                        {JSON.parse(project.customer_availability).map(
+                                          (date: string, idx: number) => (
+                                            <span
+                                              key={idx}
+                                              className="text-xs px-2 py-1 bg-muted rounded"
+                                            >
+                                              {new Date(
+                                                date + "T00:00:00"
+                                              ).toLocaleDateString()}
+                                            </span>
+                                          )
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )}

@@ -17,9 +17,16 @@ You MUST respond with ONLY a valid JSON object (no markdown, no code blocks, no 
 {
   "damage_type": "Brief description of the type of damage observed (e.g., 'Water damage to ceiling', 'Cracked foundation', 'Rotting wood siding')",
   "severity_score_1_to_10": <number from 1-10 where 1 is cosmetic and 10 is structural emergency>,
-  "cost_estimate_min": <minimum estimated repair cost in USD as a number, no dollar sign>,
-  "cost_estimate_max": <maximum estimated repair cost in USD as a number, no dollar sign>,
-  "cost_reasoning": "2-3 sentences explaining what factors into your cost estimate: materials needed, labor hours, complexity, and any assumptions you're making about the scope",
+  "cost_breakdown": {
+    "low_estimate": <minimum estimated repair cost in USD as a number, no dollar sign>,
+    "high_estimate": <maximum estimated repair cost in USD as a number, no dollar sign>,
+    "variables": [
+      "List 2-5 specific cost variables/drivers as strings",
+      "e.g., 'Mold presence', 'Source of leak access', 'Drywall vs Plaster', 'Code compliance requirements'",
+      "These should be factors that could significantly impact the final cost"
+    ],
+    "contractor_note": "A PRIVATE note for the contractor only (1-2 sentences). Things they should check on-site, safety concerns, or hidden issues to investigate. For example: 'Check for soft spots near the light fixture' or 'Inspect foundation for additional cracks behind bushes'"
+  },
   "summary_for_homeowner": "A friendly 2-3 sentence explanation for the homeowner about what you see, what might have caused it, and general urgency level. Do NOT mention specific costs here.",
   "suggested_project_name": "A short, descriptive project name (3-5 words) like 'Kitchen Water Damage Repair' or 'Basement Foundation Crack'"
 }
@@ -29,14 +36,14 @@ Cost estimation guidelines:
 - For moderate repairs (severity 4-6): typically $1,000-$5,000
 - For major repairs (severity 7-8): typically $5,000-$15,000
 - For severe/structural (severity 9-10): typically $15,000+
-- Always provide a range (min to max) to account for regional variation and hidden issues
+- Always provide a range (low to high estimate) to account for regional variation and hidden issues
+- Variables should be specific, actionable factors that impact cost (not generic items)
+- Contractor notes should highlight inspection points or concerns not visible in photos
 
 If you cannot identify any damage or the image/video is unclear, still return the JSON with:
 - damage_type: "No visible damage detected" or "Unable to assess - image unclear"
 - severity_score_1_to_10: 0
-- cost_estimate_min: 0
-- cost_estimate_max: 0
-- cost_reasoning: "No repair costs applicable" or "Unable to estimate without clearer images"
+- cost_breakdown with low_estimate: 0, high_estimate: 0, empty variables array, and appropriate contractor note
 - summary_for_homeowner: An appropriate explanation
 - suggested_project_name: "New Assessment Request"`;
 
@@ -125,9 +132,11 @@ export async function analyzeMedia(fileUrl: string): Promise<AnalysisResponse> {
     if (
       typeof analysis.damage_type !== "string" ||
       typeof analysis.severity_score_1_to_10 !== "number" ||
-      typeof analysis.cost_estimate_min !== "number" ||
-      typeof analysis.cost_estimate_max !== "number" ||
-      typeof analysis.cost_reasoning !== "string" ||
+      !analysis.cost_breakdown ||
+      typeof analysis.cost_breakdown.low_estimate !== "number" ||
+      typeof analysis.cost_breakdown.high_estimate !== "number" ||
+      !Array.isArray(analysis.cost_breakdown.variables) ||
+      typeof analysis.cost_breakdown.contractor_note !== "string" ||
       typeof analysis.summary_for_homeowner !== "string" ||
       typeof analysis.suggested_project_name !== "string"
     ) {
@@ -144,10 +153,13 @@ export async function analyzeMedia(fileUrl: string): Promise<AnalysisResponse> {
     );
 
     // Ensure cost estimates are non-negative
-    analysis.cost_estimate_min = Math.max(0, Math.round(analysis.cost_estimate_min));
-    analysis.cost_estimate_max = Math.max(
-      analysis.cost_estimate_min,
-      Math.round(analysis.cost_estimate_max)
+    analysis.cost_breakdown.low_estimate = Math.max(
+      0,
+      Math.round(analysis.cost_breakdown.low_estimate)
+    );
+    analysis.cost_breakdown.high_estimate = Math.max(
+      analysis.cost_breakdown.low_estimate,
+      Math.round(analysis.cost_breakdown.high_estimate)
     );
 
     return {
@@ -241,10 +253,13 @@ You are analyzing ${fileUrls.length} images/videos of the same repair issue from
       0,
       Math.min(10, Math.round(analysis.severity_score_1_to_10))
     );
-    analysis.cost_estimate_min = Math.max(0, Math.round(analysis.cost_estimate_min));
-    analysis.cost_estimate_max = Math.max(
-      analysis.cost_estimate_min,
-      Math.round(analysis.cost_estimate_max)
+    analysis.cost_breakdown.low_estimate = Math.max(
+      0,
+      Math.round(analysis.cost_breakdown.low_estimate)
+    );
+    analysis.cost_breakdown.high_estimate = Math.max(
+      analysis.cost_breakdown.low_estimate,
+      Math.round(analysis.cost_breakdown.high_estimate)
     );
 
     return {

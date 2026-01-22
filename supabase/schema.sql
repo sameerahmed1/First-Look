@@ -28,6 +28,8 @@ CREATE TABLE projects (
   contractor_id UUID NOT NULL REFERENCES contractors(id) ON DELETE CASCADE,
   upload_link_id UUID REFERENCES upload_links(id) ON DELETE SET NULL,
   customer_name TEXT NOT NULL,
+  customer_phone TEXT, -- Customer phone number for contact
+  customer_availability TEXT, -- JSON array of available dates
   project_name TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'analyzed', 'quoted', 'completed')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -51,7 +53,9 @@ CREATE TABLE project_analysis (
   severity_score INTEGER NOT NULL CHECK (severity_score >= 0 AND severity_score <= 10),
   cost_estimate_min INTEGER NOT NULL DEFAULT 0,
   cost_estimate_max INTEGER NOT NULL DEFAULT 0,
-  cost_reasoning TEXT,
+  cost_variables TEXT[], -- Array of cost driver strings
+  contractor_note TEXT, -- Private note for contractor
+  cost_reasoning TEXT, -- Kept for backward compatibility
   summary TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );

@@ -6,7 +6,7 @@ import { getProfile } from "@/app/actions/update-profile";
 import { DashboardClient } from "./dashboard-client";
 
 export default async function DashboardPage() {
-  const { user } = await getUser();
+  const user = await getUser();
 
   if (!user) {
     redirect("/login");

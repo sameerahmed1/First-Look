@@ -4,7 +4,7 @@ import { getProfile } from "@/app/actions/update-profile";
 import { SettingsClient } from "./settings-client";
 
 export default async function SettingsPage() {
-  const { user } = await getUser();
+  const user = await getUser();
 
   if (!user) {
     redirect("/login");

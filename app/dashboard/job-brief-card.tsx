@@ -3,6 +3,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   AlertTriangle,
   Clock,
   CheckCircle2,
@@ -12,6 +18,7 @@ import {
   AlertCircle,
   Image as ImageIcon,
   Video,
+  Info,
 } from "lucide-react";
 import type { AIAnalysis, CaptureData } from "@/types";
 
@@ -60,24 +67,51 @@ export function JobBriefCard({
     switch (urgency) {
       case "Emergency":
         return (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-600 text-white rounded-full text-sm font-semibold">
-            <AlertTriangle className="w-4 h-4" />
-            Emergency
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-600 text-white rounded-full text-sm font-semibold cursor-help">
+                  <AlertTriangle className="w-4 h-4" />
+                  Emergency
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Active hazard - needs immediate response</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         );
       case "24-48hrs":
         return (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-yellow-500 text-white rounded-full text-sm font-semibold">
-            <Clock className="w-4 h-4" />
-            24-48hrs
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-yellow-500 text-white rounded-full text-sm font-semibold cursor-help">
+                  <Clock className="w-4 h-4" />
+                  24-48hrs
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Active damage progression - should be addressed soon</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         );
       case "Routine":
         return (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-600 text-white rounded-full text-sm font-semibold">
-            <CheckCircle2 className="w-4 h-4" />
-            Routine
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-600 text-white rounded-full text-sm font-semibold cursor-help">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Routine
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Stable issue - can be scheduled normally</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         );
       default:
         return null;
@@ -95,6 +129,10 @@ export function JobBriefCard({
   };
 
   const buildScheduleVisitSMS = () => {
+    const availability = captureData?.availability;
+    if (availability) {
+      return `Hi ${project.customer_name}, I've reviewed your ${captureData?.problem_type || "project"}. I can visit on one of the times you mentioned: ${availability}. Which works best?`;
+    }
     return `Hi ${project.customer_name}, I've reviewed your ${captureData?.problem_type || "project"}. When would be a good time for me to come take a look in person?`;
   };
 
@@ -113,32 +151,35 @@ export function JobBriefCard({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header: Urgency + Trade */}
+    <div className="space-y-6" onClick={(e) => e.stopPropagation()}>
+      {/* Header: Urgency + Risk Flags */}
       {aiAnalysis && (
         <div className="flex items-start justify-between">
           <div className="space-y-2">
             {getUrgencyBadge(aiAnalysis.triage.urgency)}
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span className="font-semibold">Trade:</span>
-              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
-                {aiAnalysis.triage.trade}
-              </span>
-            </div>
             {aiAnalysis.triage.risk_flags.length > 0 && (
-              <div className="flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
-                <div className="flex flex-wrap gap-1">
-                  {aiAnalysis.triage.risk_flags.map((flag, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-0.5 bg-orange-100 text-orange-800 rounded text-xs"
-                    >
-                      {flag}
-                    </span>
-                  ))}
-                </div>
-              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-start gap-2 cursor-help">
+                      <AlertCircle className="w-4 h-4 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" />
+                      <div className="flex flex-wrap gap-1">
+                        {aiAnalysis.triage.risk_flags.map((flag, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 rounded text-xs"
+                          >
+                            {flag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Potential risks identified by AI analysis</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
         </div>
@@ -147,7 +188,7 @@ export function JobBriefCard({
       {/* Media Preview */}
       {project.project_media.length > 0 && (
         <div>
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">
+          <h4 className="text-sm font-semibold text-foreground mb-2">
             Media ({project.project_media.length})
           </h4>
           <div className="flex gap-2 overflow-x-auto pb-2">
@@ -157,11 +198,12 @@ export function JobBriefCard({
                 href={media.file_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="relative w-24 h-24 flex-shrink-0 rounded-md overflow-hidden bg-gray-100 hover:ring-2 hover:ring-blue-500 transition-all"
+                onClick={(e) => e.stopPropagation()}
+                className="relative w-24 h-24 flex-shrink-0 rounded-md overflow-hidden bg-muted hover:ring-2 hover:ring-primary transition-all"
               >
                 {media.file_type === "video" ? (
                   <div className="w-full h-full flex items-center justify-center">
-                    <Video className="w-8 h-8 text-gray-400" />
+                    <Video className="w-8 h-8 text-muted-foreground" />
                   </div>
                 ) : (
                   <img
@@ -179,23 +221,45 @@ export function JobBriefCard({
       {/* Section 1: AI Summary & Missing Evidence */}
       {aiAnalysis && (
         <div className="space-y-4">
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h4 className="text-sm font-semibold text-blue-900 mb-2">
-              AI Summary
-            </h4>
-            <p className="text-sm text-blue-800">{aiAnalysis.summary}</p>
+          <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                AI Summary
+              </h4>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>AI-generated executive summary of the issue</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <p className="text-sm text-blue-800 dark:text-blue-200">{aiAnalysis.summary}</p>
           </div>
 
           {aiAnalysis.missing_evidence.length > 0 && (
-            <div className="p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
-              <h4 className="text-sm font-semibold text-yellow-900 mb-2 flex items-center gap-2">
+            <div className="p-4 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-300 dark:border-yellow-800 rounded-lg">
+              <h4 className="text-sm font-semibold text-yellow-900 dark:text-yellow-100 mb-2 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
                 Missing Evidence
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Additional photos or info that would help refine the assessment</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </h4>
               <ul className="space-y-1">
                 {aiAnalysis.missing_evidence.map((item, idx) => (
-                  <li key={idx} className="text-sm text-yellow-800 flex items-start gap-2">
-                    <span className="text-yellow-600 mt-0.5">•</span>
+                  <li key={idx} className="text-sm text-yellow-800 dark:text-yellow-200 flex items-start gap-2">
+                    <span className="text-yellow-600 dark:text-yellow-400 mt-0.5">•</span>
                     <span>{item}</span>
                   </li>
                 ))}
@@ -208,32 +272,50 @@ export function JobBriefCard({
       {/* Section 2: Scope Hypotheses */}
       {aiAnalysis && aiAnalysis.scope_hypotheses.length > 0 && (
         <div>
-          <h4 className="text-sm font-semibold text-gray-900 mb-3">
-            Scope Hypotheses (Toggle as needed)
-          </h4>
+          <div className="flex items-center gap-2 mb-3">
+            <h4 className="text-sm font-semibold text-foreground">
+              Scope Hypotheses
+            </h4>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="w-4 h-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Toggle items on/off based on your assessment</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <div className="space-y-2">
             {aiAnalysis.scope_hypotheses.map((hypothesis, idx) => (
               <label
                 key={idx}
                 className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
                   scopeToggles[idx]
-                    ? "border-green-500 bg-green-50"
-                    : "border-gray-300 bg-white hover:bg-gray-50"
+                    ? "border-green-500 bg-green-50 dark:bg-green-950/30"
+                    : "border-border bg-card hover:bg-muted"
                 }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setScopeToggles({ ...scopeToggles, [idx]: !scopeToggles[idx] });
+                }}
               >
                 <input
                   type="checkbox"
                   checked={scopeToggles[idx] || false}
-                  onChange={(e) =>
-                    setScopeToggles({ ...scopeToggles, [idx]: e.target.checked })
-                  }
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    setScopeToggles({ ...scopeToggles, [idx]: e.target.checked });
+                  }}
+                  onClick={(e) => e.stopPropagation()}
                   className="mt-0.5 w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-500"
                 />
                 <span
                   className={`text-sm ${
                     scopeToggles[idx]
-                      ? "font-medium text-green-900"
-                      : "text-gray-700"
+                      ? "font-medium text-green-900 dark:text-green-100"
+                      : "text-foreground"
                   }`}
                 >
                   {hypothesis.item}
@@ -246,24 +328,34 @@ export function JobBriefCard({
 
       {/* Section 3: Pricing */}
       {aiAnalysis && (
-        <div className="p-4 bg-gradient-to-br from-green-50 to-blue-50 border border-green-200 rounded-lg">
+        <div className="p-4 bg-gradient-to-br from-green-50 to-blue-50 dark:from-green-950/30 dark:to-blue-950/30 border border-green-200 dark:border-green-800 rounded-lg">
           <div className="flex items-center gap-2 mb-3">
-            <DollarSign className="w-5 h-5 text-green-700" />
-            <h4 className="text-lg font-bold text-green-900">
+            <DollarSign className="w-5 h-5 text-green-700 dark:text-green-400" />
+            <h4 className="text-lg font-bold text-green-900 dark:text-green-100">
               {formatCurrency(aiAnalysis.price_breakdown.range_low)} -{" "}
               {formatCurrency(aiAnalysis.price_breakdown.range_high)}
             </h4>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="w-4 h-4 text-green-600 dark:text-green-400" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>AI-estimated price range based on typical U.S. market rates</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
           <div className="space-y-3">
             <div>
-              <h5 className="text-xs font-semibold text-gray-700 mb-1">
+              <h5 className="text-xs font-semibold text-foreground mb-1">
                 Assumptions:
               </h5>
               <ul className="space-y-1">
                 {aiAnalysis.price_breakdown.assumptions.map((assumption, idx) => (
-                  <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
-                    <span className="text-green-600 mt-0.5">✓</span>
+                  <li key={idx} className="text-sm text-foreground flex items-start gap-2">
+                    <span className="text-green-600 dark:text-green-400 mt-0.5">✓</span>
                     <span>{assumption}</span>
                   </li>
                 ))}
@@ -271,13 +363,13 @@ export function JobBriefCard({
             </div>
 
             <div>
-              <h5 className="text-xs font-semibold text-gray-700 mb-1">
+              <h5 className="text-xs font-semibold text-foreground mb-1">
                 Variables that could change price:
               </h5>
               <ul className="space-y-1">
                 {aiAnalysis.price_breakdown.variables.map((variable, idx) => (
-                  <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
-                    <span className="text-orange-600 mt-0.5">⚠</span>
+                  <li key={idx} className="text-sm text-foreground flex items-start gap-2">
+                    <span className="text-orange-600 dark:text-orange-400 mt-0.5">⚠</span>
                     <span>{variable}</span>
                   </li>
                 ))}
@@ -290,10 +382,10 @@ export function JobBriefCard({
       {/* Capture Data Context (Collapsible) */}
       {captureData && (
         <details className="group">
-          <summary className="cursor-pointer text-sm font-semibold text-gray-700 hover:text-gray-900">
+          <summary className="cursor-pointer text-sm font-semibold text-foreground hover:text-primary">
             View Homeowner Context
           </summary>
-          <div className="mt-3 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
+          <div className="mt-3 p-4 bg-muted rounded-lg text-sm space-y-2">
             <div>
               <span className="font-medium">Problem Type:</span> {captureData.problem_type}
             </div>
@@ -314,12 +406,17 @@ export function JobBriefCard({
                 <span className="font-medium">Notes:</span> {captureData.context.additional_notes}
               </div>
             )}
+            {captureData.availability && (
+              <div>
+                <span className="font-medium">Availability:</span> {captureData.availability}
+              </div>
+            )}
           </div>
         </details>
       )}
 
       {/* Footer: Action Buttons */}
-      <div className="pt-4 border-t space-y-3">
+      <div className="pt-4 border-t space-y-3" onClick={(e) => e.stopPropagation()}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           {project.customer_phone && (
             <>
@@ -328,6 +425,7 @@ export function JobBriefCard({
                 size="sm"
                 asChild
                 className="w-full"
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
               >
                 <a href={smsLink(buildRequestInfoSMS())}>
                   <MessageSquare className="w-4 h-4 mr-2" />
@@ -339,6 +437,7 @@ export function JobBriefCard({
                 size="sm"
                 asChild
                 className="w-full"
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
               >
                 <a href={smsLink(buildScheduleVisitSMS())}>
                   <Clock className="w-4 h-4 mr-2" />
@@ -350,6 +449,7 @@ export function JobBriefCard({
                 size="sm"
                 asChild
                 className="w-full"
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
               >
                 <a href={smsLink(buildBallparkSMS())}>
                   <DollarSign className="w-4 h-4 mr-2" />
@@ -364,6 +464,7 @@ export function JobBriefCard({
               size="sm"
               asChild
               className="w-full col-span-3"
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
               <a href={mailtoLink("Re: Your Project", `Hi ${project.customer_name},\n\nI've reviewed your project submission. `)}>
                 <Mail className="w-4 h-4 mr-2" />
@@ -376,9 +477,12 @@ export function JobBriefCard({
         <div className="flex items-center gap-2">
           <select
             value={project.status}
-            onChange={(e) => onStatusChange(e.target.value)}
-            className="flex-1 px-3 py-2 text-sm border rounded-md bg-white"
+            onChange={(e) => {
+              e.stopPropagation();
+              onStatusChange(e.target.value);
+            }}
             onClick={(e) => e.stopPropagation()}
+            className="flex-1 px-3 py-2 text-sm border rounded-md bg-background text-foreground"
           >
             <option value="new">New</option>
             <option value="pending">Pending</option>

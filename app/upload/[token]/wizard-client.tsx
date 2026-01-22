@@ -61,6 +61,8 @@ export function GuidedCaptureWizard({
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [availability, setAvailability] = useState<string[]>([]);
+  const [loadingMessage, setLoadingMessage] = useState("");
 
   // Check if there are any active safety concerns
   const hasActiveSafetyConcerns = Object.values(safetyChecks).some((v) => v === true);
@@ -71,10 +73,13 @@ export function GuidedCaptureWizard({
 
     try {
       // Step 1: Upload files to Supabase Storage
+      setLoadingMessage("Uploading photos and videos...");
       const { uploadToSupabase } = await import("@/lib/supabase");
       const fileUrls: string[] = [];
 
-      for (const file of uploadedFiles) {
+      for (let i = 0; i < uploadedFiles.length; i++) {
+        const file = uploadedFiles[i];
+        setLoadingMessage(`Uploading file ${i + 1} of ${uploadedFiles.length}...`);
         const { url, error: uploadError } = await uploadToSupabase(file);
         if (uploadError) {
           setError(`Failed to upload ${file.name}: ${uploadError.message}`);
@@ -84,12 +89,16 @@ export function GuidedCaptureWizard({
         fileUrls.push(url);
       }
 
-      // Step 2: Build capture data
+      // Step 2: Analyze with AI
+      setLoadingMessage("AI is analyzing your project... This may take 30-60 seconds.");
+
+      // Build capture data
       const captureData: CaptureData = {
         problem_type: problemType,
         safety_checks: safetyChecks,
         home_info: homeInfo,
         context: contextInfo,
+        availability: availability.length > 0 ? availability.join("; ") : undefined,
       };
 
       // Step 3: Submit project with wizard data
@@ -106,15 +115,18 @@ export function GuidedCaptureWizard({
       if (!result.success) {
         setError(result.error || "Failed to submit project");
         setIsSubmitting(false);
+        setLoadingMessage("");
         return;
       }
 
       setProjectName(result.projectName || "Your Project");
+      setLoadingMessage("");
       setCurrentStep("success");
     } catch (err) {
       console.error("Error submitting project:", err);
       setError("An unexpected error occurred. Please try again.");
       setIsSubmitting(false);
+      setLoadingMessage("");
     }
   };
 
@@ -265,12 +277,21 @@ export function GuidedCaptureWizard({
               onCustomerEmailChange={setCustomerEmail}
               customerPhone={customerPhone}
               onCustomerPhoneChange={setCustomerPhone}
+              availability={availability}
+              onAvailabilityChange={setAvailability}
             />
           )}
 
           {error && (
-            <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-red-700 text-sm">{error}</p>
+            <div className="mt-6 p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md">
+              <p className="text-red-700 dark:text-red-300 text-sm">{error}</p>
+            </div>
+          )}
+
+          {loadingMessage && (
+            <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md flex items-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              <p className="text-blue-800 dark:text-blue-200 text-sm font-medium">{loadingMessage}</p>
             </div>
           )}
         </Card>

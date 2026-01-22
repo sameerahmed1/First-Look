@@ -65,6 +65,7 @@ export interface CaptureData {
   safety_checks: SafetyChecks;
   home_info: HomeInfo;
   context: ContextInfo;
+  availability?: string; // Homeowner's availability for site visit
 }
 
 /**

@@ -4,13 +4,17 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 
 export async function createUploadLink(label?: string) {
+  console.log("[createUploadLink] Starting with label:", label);
   const supabase = await createServerSupabaseClient();
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
+  console.log("[createUploadLink] User:", user?.id);
+
   if (!user) {
+    console.log("[createUploadLink] No user, returning error");
     return { success: false, error: "Not authenticated" };
   }
 
@@ -24,9 +28,11 @@ export async function createUploadLink(label?: string) {
     .single();
 
   if (error) {
+    console.error("[createUploadLink] Database error:", error);
     return { success: false, error: error.message };
   }
 
+  console.log("[createUploadLink] Link created successfully:", data);
   revalidatePath("/dashboard");
 
   return {
@@ -37,6 +43,7 @@ export async function createUploadLink(label?: string) {
 }
 
 export async function getUploadLinks() {
+  console.log("[getUploadLinks] Fetching upload links");
   const supabase = await createServerSupabaseClient();
 
   const { data: links, error } = await supabase
@@ -45,9 +52,11 @@ export async function getUploadLinks() {
     .order("created_at", { ascending: false });
 
   if (error) {
+    console.error("[getUploadLinks] Error fetching links:", error);
     return { links: [], error: error.message };
   }
 
+  console.log("[getUploadLinks] Found links:", links?.length || 0);
   return { links, error: null };
 }
 

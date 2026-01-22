@@ -82,21 +82,28 @@ export function DashboardClient({
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
+  // Debug logging
+  console.log("Dashboard render - uploadLinks:", uploadLinks);
+  console.log("Dashboard render - user:", user?.id);
+
   const handleCreateLink = async () => {
+    console.log("Creating link with label:", linkLabel);
     setIsCreatingLink(true);
     try {
       const result = await createUploadLink(linkLabel || undefined);
+      console.log("Create link result:", result);
       if (result.success) {
+        console.log("Link created successfully, refreshing...");
         setLinkLabel("");
         // Force a hard refresh of the page data
         router.refresh();
       } else {
         console.error("Failed to create link:", result.error);
-        alert("Failed to create link. Please try again.");
+        alert(`Failed to create link: ${result.error}`);
       }
     } catch (error) {
       console.error("Error creating link:", error);
-      alert("An error occurred. Please try again.");
+      alert(`An error occurred: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsCreatingLink(false);
     }

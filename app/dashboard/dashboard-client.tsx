@@ -31,7 +31,9 @@ import {
   AlertCircle,
   Eye,
   Archive,
+  Settings,
 } from "lucide-react";
+import NextLink from "next/link";
 import { JobBriefCard } from "./job-brief-card";
 import type { CaptureData, AIAnalysis } from "@/types";
 
@@ -72,12 +74,14 @@ interface DashboardClientProps {
   user: User;
   projects: Project[];
   uploadLinks: UploadLink[];
+  businessName: string | null;
 }
 
 export function DashboardClient({
   user,
   projects,
   uploadLinks,
+  businessName,
 }: DashboardClientProps) {
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [linkLabel, setLinkLabel] = useState("");
@@ -156,15 +160,25 @@ export function DashboardClient({
       <header className="border-b bg-card">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold">First Look</h1>
+            <h1 className="text-xl font-bold">
+              {businessName || "First Look"}
+            </h1>
             <p className="text-sm text-muted-foreground">{user.email}</p>
           </div>
-          <form action={signOut}>
-            <Button variant="outline" size="sm">
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
-          </form>
+          <div className="flex items-center gap-2">
+            <NextLink href="/dashboard/settings">
+              <Button variant="outline" size="sm">
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </Button>
+            </NextLink>
+            <form action={signOut}>
+              <Button variant="outline" size="sm">
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
+            </form>
+          </div>
         </div>
       </header>
 

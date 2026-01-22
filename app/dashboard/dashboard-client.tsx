@@ -32,6 +32,8 @@ import {
   Eye,
   Archive,
   Settings,
+  Image as ImageIcon,
+  Video,
 } from "lucide-react";
 import NextLink from "next/link";
 import { JobBriefCard } from "./job-brief-card";

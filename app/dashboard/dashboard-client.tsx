@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
 import { signOut } from "@/app/actions/auth";
 import {
@@ -35,6 +36,9 @@ import {
 interface Project {
   id: string;
   customer_name: string;
+  customer_email?: string;
+  customer_phone?: string;
+  date_availability?: string;
   project_name: string;
   status: string;
   created_at: string;
@@ -72,6 +76,7 @@ export function DashboardClient({
   projects,
   uploadLinks,
 }: DashboardClientProps) {
+  const router = useRouter();
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [linkLabel, setLinkLabel] = useState("");
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
@@ -82,6 +87,7 @@ export function DashboardClient({
     await createUploadLink(linkLabel || undefined);
     setLinkLabel("");
     setIsCreatingLink(false);
+    router.refresh();
   };
 
   const handleCopyLink = async (token: string) => {
@@ -314,6 +320,51 @@ export function DashboardClient({
                         {/* Expanded View */}
                         {selectedProject?.id === project.id && (
                           <div className="mt-4 pt-4 border-t space-y-4">
+                            {/* Customer Contact Information */}
+                            {(project.customer_email ||
+                              project.customer_phone ||
+                              project.date_availability) && (
+                              <div className="p-3 rounded-md bg-muted space-y-2">
+                                <p className="text-xs text-muted-foreground font-medium">
+                                  Customer Contact
+                                </p>
+                                {project.customer_email && (
+                                  <p className="text-sm">
+                                    <span className="text-muted-foreground">
+                                      Email:
+                                    </span>{" "}
+                                    <a
+                                      href={`mailto:${project.customer_email}`}
+                                      className="text-primary hover:underline"
+                                    >
+                                      {project.customer_email}
+                                    </a>
+                                  </p>
+                                )}
+                                {project.customer_phone && (
+                                  <p className="text-sm">
+                                    <span className="text-muted-foreground">
+                                      Phone:
+                                    </span>{" "}
+                                    <a
+                                      href={`tel:${project.customer_phone}`}
+                                      className="text-primary hover:underline"
+                                    >
+                                      {project.customer_phone}
+                                    </a>
+                                  </p>
+                                )}
+                                {project.date_availability && (
+                                  <p className="text-sm">
+                                    <span className="text-muted-foreground">
+                                      Availability:
+                                    </span>{" "}
+                                    {project.date_availability}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
                             {/* Media Preview */}
                             {project.project_media.length > 0 && (
                               <div className="flex gap-2 overflow-x-auto pb-2">

@@ -44,6 +44,9 @@ export interface Project {
   id: string;
   contractor_id: string;
   customer_name: string;
+  customer_email?: string;
+  customer_phone?: string;
+  date_availability?: string;
   project_name: string;
   status: "pending" | "analyzed" | "quoted" | "completed";
   created_at: string;

@@ -8,6 +8,9 @@ interface CreateProjectInput {
   contractorId: string;
   uploadLinkId?: string;
   customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  dateAvailability?: string;
   fileUrls: string[];
 }
 
@@ -34,6 +37,9 @@ export async function createProject(input: CreateProjectInput) {
         contractor_id: input.contractorId,
         upload_link_id: input.uploadLinkId || null,
         customer_name: input.customerName,
+        customer_email: input.customerEmail,
+        customer_phone: input.customerPhone,
+        date_availability: input.dateAvailability || null,
         project_name: analysis.suggested_project_name,
         status: "analyzed",
       })

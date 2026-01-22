@@ -35,6 +35,9 @@ export function CustomerUploadClient({
   linkLabel,
 }: CustomerUploadClientProps) {
   const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [dateAvailability, setDateAvailability] = useState("");
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
   const [uploadState, setUploadState] = useState<UploadState>({
     status: "input",
@@ -49,6 +52,32 @@ export function CustomerUploadClient({
       setUploadState({
         status: "error",
         message: "Please enter your name",
+      });
+      return;
+    }
+
+    if (!customerEmail.trim()) {
+      setUploadState({
+        status: "error",
+        message: "Please enter your email address",
+      });
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customerEmail.trim())) {
+      setUploadState({
+        status: "error",
+        message: "Please enter a valid email address",
+      });
+      return;
+    }
+
+    if (!customerPhone.trim()) {
+      setUploadState({
+        status: "error",
+        message: "Please enter your phone number",
       });
       return;
     }
@@ -68,6 +97,9 @@ export function CustomerUploadClient({
         contractorId,
         uploadLinkId,
         customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        customerPhone: customerPhone.trim(),
+        dateAvailability: dateAvailability.trim() || undefined,
         fileUrls: uploadedUrls,
       });
 
@@ -157,6 +189,56 @@ export function CustomerUploadClient({
                 onChange={(e) => setCustomerName(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md bg-background"
                 placeholder="Enter your full name"
+                disabled={uploadState.status === "processing"}
+              />
+            </div>
+
+            {/* Customer Email Input */}
+            <div className="space-y-2">
+              <label htmlFor="customerEmail" className="text-sm font-medium">
+                Email Address <span className="text-destructive">*</span>
+              </label>
+              <input
+                id="customerEmail"
+                type="email"
+                required
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md bg-background"
+                placeholder="your@email.com"
+                disabled={uploadState.status === "processing"}
+              />
+            </div>
+
+            {/* Customer Phone Input */}
+            <div className="space-y-2">
+              <label htmlFor="customerPhone" className="text-sm font-medium">
+                Phone Number <span className="text-destructive">*</span>
+              </label>
+              <input
+                id="customerPhone"
+                type="tel"
+                required
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md bg-background"
+                placeholder="(555) 123-4567"
+                disabled={uploadState.status === "processing"}
+              />
+            </div>
+
+            {/* Date Availability Input */}
+            <div className="space-y-2">
+              <label htmlFor="dateAvailability" className="text-sm font-medium">
+                Preferred Date/Time Availability
+              </label>
+              <input
+                id="dateAvailability"
+                type="text"
+                value={dateAvailability}
+                onChange={(e) => setDateAvailability(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md bg-background"
+                placeholder="e.g., Weekdays after 5pm, or specific dates"
                 disabled={uploadState.status === "processing"}
               />
             </div>

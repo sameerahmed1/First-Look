@@ -1,6 +1,6 @@
 "use server";
 
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase-server";
 import { analyzeMultipleMedia, analyzeProjectWithContext } from "./analyze-media";
 import { revalidatePath } from "next/cache";
 import type { CaptureData } from "@/types";
@@ -188,7 +188,9 @@ interface CreateProjectWithWizardInput {
 }
 
 export async function createProjectWithWizard(input: CreateProjectWithWizardInput) {
-  const supabase = await createServerSupabaseClient();
+  // Use service role client to bypass RLS for customer submissions
+  // The upload link token itself provides authorization
+  const supabase = createServiceRoleClient();
 
   try {
     // Analyze the project with full context from the wizard

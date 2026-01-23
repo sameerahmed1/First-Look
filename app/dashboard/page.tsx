@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getUser, createServerClient } from "@/lib/supabase-server";
+import { getUser, createServerSupabaseClient } from "@/lib/supabase-server";
 import { getProjects } from "@/app/actions/projects";
 import { getUploadLinks } from "@/app/actions/upload-links";
 import { DashboardClient } from "./dashboard-client";
@@ -15,7 +15,7 @@ export default async function DashboardPage() {
   const { links } = await getUploadLinks();
 
   // Get business name from contractor profile
-  const supabase = await createServerClient();
+  const supabase = await createServerSupabaseClient();
   const { data: contractor } = await supabase
     .from("contractors")
     .select("business_name")

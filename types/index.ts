@@ -86,13 +86,12 @@ export interface ScopeHypothesis {
 }
 
 /**
- * Price breakdown with assumptions and variables
+ * Price scenario (Best Case, Most Likely, Worst Case)
  */
-export interface PriceBreakdown {
-  range_low: number;
-  range_high: number;
-  assumptions: string[]; // List of pricing assumptions
-  variables: string[]; // Factors that could change the price
+export interface PriceScenario {
+  label: "Best Case" | "Most Likely" | "Worst Case";
+  price: string; // e.g., "$500-$800"
+  description: string; // Why this scenario applies
 }
 
 /**
@@ -103,7 +102,9 @@ export interface AIAnalysis {
   missing_evidence: string[]; // What additional photos/info would help
   triage: Triage;
   scope_hypotheses: ScopeHypothesis[];
-  price_breakdown: PriceBreakdown;
+  trade_category: string; // e.g., "Plumbing", "Roofing"
+  scenarios: PriceScenario[]; // Always 3 scenarios
+  variables: string[]; // Factors driving cost up/down
 }
 
 /**

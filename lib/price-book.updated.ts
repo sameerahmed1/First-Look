@@ -1321,3 +1321,22 @@ export const PRICE_BOOK: Record<TradeCategory, Record<string, PriceScenario>> = 
     }
   }
 };
+
+/**
+ * Get formatted pricing context for a specific trade category
+ * This is injected into the AI prompt to prevent hallucinations
+ */
+export function getPriceContext(trade: TradeCategory): string {
+  const scenarios = PRICE_BOOK[trade];
+
+  let context = `CONTEXTUAL PRICING DATA FOR ${trade.toUpperCase().replace(/_/g, ' ')}:\n`;
+  context += `All prices below are 2026 U.S. National Averages. Use these as anchors for your estimates.\n\n`;
+
+  for (const [key, scenario] of Object.entries(scenarios)) {
+    context += `${scenario.name}:\n`;
+    context += `  Range: $${scenario.low.toLocaleString()} - $${scenario.high.toLocaleString()} ${scenario.unit}\n`;
+    context += `  Context: ${scenario.description}\n\n`;
+  }
+
+  return context;
+}

@@ -55,14 +55,6 @@ export function JobBriefCard({
     }, {} as Record<number, boolean>) || {}
   );
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
   const getUrgencyBadge = (urgency: string) => {
     switch (urgency) {
       case "Emergency":
@@ -138,7 +130,9 @@ export function JobBriefCard({
 
   const buildBallparkSMS = () => {
     if (!aiAnalysis) return "";
-    return `Hi ${project.customer_name}, based on the photos and info you provided, I estimate this project at ${formatCurrency(aiAnalysis.price_breakdown.range_low)} - ${formatCurrency(aiAnalysis.price_breakdown.range_high)}. I'd be happy to schedule a visit to provide a detailed quote. When works for you?`;
+    const mostLikely = aiAnalysis.scenarios.find(s => s.label === "Most Likely");
+    const priceRange = mostLikely?.price || "TBD";
+    return `Hi ${project.customer_name}, based on the photos and info you provided, I estimate this project at ${priceRange}. I'd be happy to schedule a visit to provide a detailed quote. When works for you?`;
   };
 
   const smsLink = (message: string) => {
@@ -326,56 +320,93 @@ export function JobBriefCard({
         </div>
       )}
 
-      {/* Section 3: Pricing */}
-      {aiAnalysis && (
-        <div className="p-4 bg-gradient-to-br from-green-50 to-blue-50 dark:from-green-950/30 dark:to-blue-950/30 border border-green-200 dark:border-green-800 rounded-lg">
-          <div className="flex items-center gap-2 mb-3">
-            <DollarSign className="w-5 h-5 text-green-700 dark:text-green-400" />
-            <h4 className="text-lg font-bold text-green-900 dark:text-green-100">
-              {formatCurrency(aiAnalysis.price_breakdown.range_low)} -{" "}
-              {formatCurrency(aiAnalysis.price_breakdown.range_high)}
-            </h4>
+      {/* Section 3: Pricing Scenarios */}
+      {aiAnalysis && aiAnalysis.scenarios && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-primary" />
+            <h4 className="text-lg font-bold">Pricing Scenarios</h4>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <Info className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <Info className="w-4 h-4 text-muted-foreground" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>AI-estimated price range based on typical U.S. market rates</p>
+                  <p>Three scenarios based on scope and complications</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
 
-          <div className="space-y-3">
-            <div>
-              <h5 className="text-xs font-semibold text-foreground mb-1">
-                Assumptions:
-              </h5>
-              <ul className="space-y-1">
-                {aiAnalysis.price_breakdown.assumptions.map((assumption, idx) => (
-                  <li key={idx} className="text-sm text-foreground flex items-start gap-2">
-                    <span className="text-green-600 dark:text-green-400 mt-0.5">✓</span>
-                    <span>{assumption}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {/* 3-Column Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {aiAnalysis.scenarios.map((scenario, idx) => {
+              const isBestCase = scenario.label === "Best Case";
+              const isMostLikely = scenario.label === "Most Likely";
+              const isWorstCase = scenario.label === "Worst Case";
 
-            <div>
-              <h5 className="text-xs font-semibold text-foreground mb-1">
-                Variables that could change price:
+              return (
+                <div
+                  key={idx}
+                  className={`p-4 rounded-lg border-2 ${
+                    isBestCase
+                      ? "bg-green-50 dark:bg-green-950/30 border-green-300 dark:border-green-700"
+                      : isMostLikely
+                      ? "bg-blue-50 dark:bg-blue-950/30 border-blue-400 dark:border-blue-600 ring-2 ring-blue-400 dark:ring-blue-600 ring-opacity-50 md:scale-105"
+                      : "bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-700"
+                  }`}
+                >
+                  <div className="mb-2">
+                    <h5
+                      className={`text-sm font-bold uppercase tracking-wide ${
+                        isBestCase
+                          ? "text-green-700 dark:text-green-400"
+                          : isMostLikely
+                          ? "text-blue-700 dark:text-blue-400"
+                          : "text-red-700 dark:text-red-400"
+                      }`}
+                    >
+                      {scenario.label}
+                    </h5>
+                    <p
+                      className={`text-2xl font-extrabold mt-1 ${
+                        isBestCase
+                          ? "text-green-900 dark:text-green-100"
+                          : isMostLikely
+                          ? "text-blue-900 dark:text-blue-100"
+                          : "text-red-900 dark:text-red-100"
+                      }`}
+                    >
+                      {scenario.price}
+                    </p>
+                  </div>
+                  <p className="text-xs text-foreground/80">{scenario.description}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Variables Section */}
+          {aiAnalysis.variables && aiAnalysis.variables.length > 0 && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <h5 className="text-xs font-semibold text-foreground mb-2">
+                Variables that could shift cost:
               </h5>
               <ul className="space-y-1">
-                {aiAnalysis.price_breakdown.variables.map((variable, idx) => (
+                {aiAnalysis.variables.map((variable, idx) => (
                   <li key={idx} className="text-sm text-foreground flex items-start gap-2">
-                    <span className="text-orange-600 dark:text-orange-400 mt-0.5">⚠</span>
+                    <span className="text-amber-600 dark:text-amber-400 mt-0.5">⚠</span>
                     <span>{variable}</span>
                   </li>
                 ))}
               </ul>
             </div>
-          </div>
+          )}
+
+          {/* Footer Note */}
+          <p className="text-xs text-muted-foreground italic text-center">
+            Estimates sourced from 2026 National Averages. Final quote requires site visit.
+          </p>
         </div>
       )}
 

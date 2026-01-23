@@ -32,6 +32,12 @@ import {
   Video,
 } from "lucide-react";
 
+interface PricingScenario {
+  label: "Best Case" | "Most Likely" | "Worst Case";
+  price: string;
+  description: string;
+}
+
 interface Project {
   id: string;
   customer_name: string;
@@ -47,10 +53,14 @@ interface Project {
     id: string;
     damage_type: string;
     severity_score: number;
-    cost_estimate_min: number;
-    cost_estimate_max: number;
-    cost_reasoning: string;
+    trade_category?: string;
+    scenarios?: PricingScenario[];
+    variables?: string[];
     summary: string;
+    // Legacy fields for backward compatibility
+    cost_estimate_min?: number;
+    cost_estimate_max?: number;
+    cost_reasoning?: string;
   }>;
 }
 
@@ -342,7 +352,7 @@ export function DashboardClient({
                             {/* Analysis */}
                             {project.project_analysis[0] && (
                               <div className="space-y-3">
-                                <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="grid gap-3 sm:grid-cols-3">
                                   <div className="p-3 rounded-md bg-muted">
                                     <p className="text-xs text-muted-foreground mb-1">
                                       Damage Type
@@ -362,25 +372,167 @@ export function DashboardClient({
                                       / 10
                                     </p>
                                   </div>
+                                  {project.project_analysis[0].trade_category && (
+                                    <div className="p-3 rounded-md bg-muted">
+                                      <p className="text-xs text-muted-foreground mb-1">
+                                        Trade Category
+                                      </p>
+                                      <p className="text-sm font-medium">
+                                        {project.project_analysis[0].trade_category.replace(
+                                          /_/g,
+                                          " "
+                                        )}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
 
-                                <div className="p-3 rounded-md bg-muted">
-                                  <p className="text-xs text-muted-foreground mb-1">
-                                    Cost Estimate
-                                  </p>
-                                  <p className="text-lg font-bold text-primary">
-                                    {formatCurrency(
-                                      project.project_analysis[0].cost_estimate_min
-                                    )}{" "}
-                                    -{" "}
-                                    {formatCurrency(
-                                      project.project_analysis[0].cost_estimate_max
+                                {/* Scenario-Based Pricing */}
+                                {project.project_analysis[0].scenarios &&
+                                project.project_analysis[0].scenarios.length ===
+                                  3 ? (
+                                  <>
+                                    <div className="grid gap-3 sm:grid-cols-3">
+                                      {/* Best Case - Green */}
+                                      <div className="p-4 rounded-lg border-2 border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <CheckCircle className="w-4 h-4 text-green-600" />
+                                          <p className="text-xs font-semibold text-green-700 dark:text-green-400">
+                                            {
+                                              project.project_analysis[0]
+                                                .scenarios[0].label
+                                            }
+                                          </p>
+                                        </div>
+                                        <p className="text-lg font-bold text-green-900 dark:text-green-300 mb-2">
+                                          {
+                                            project.project_analysis[0]
+                                              .scenarios[0].price
+                                          }
+                                        </p>
+                                        <p className="text-xs text-green-700 dark:text-green-400">
+                                          {
+                                            project.project_analysis[0]
+                                              .scenarios[0].description
+                                          }
+                                        </p>
+                                      </div>
+
+                                      {/* Most Likely - Blue (Highlighted) */}
+                                      <div className="p-4 rounded-lg border-2 border-blue-300 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-700 shadow-md">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <AlertTriangle className="w-4 h-4 text-blue-600" />
+                                          <p className="text-xs font-semibold text-blue-700 dark:text-blue-400">
+                                            {
+                                              project.project_analysis[0]
+                                                .scenarios[1].label
+                                            }
+                                          </p>
+                                        </div>
+                                        <p className="text-xl font-bold text-blue-900 dark:text-blue-300 mb-2">
+                                          {
+                                            project.project_analysis[0]
+                                              .scenarios[1].price
+                                          }
+                                        </p>
+                                        <p className="text-xs text-blue-700 dark:text-blue-400">
+                                          {
+                                            project.project_analysis[0]
+                                              .scenarios[1].description
+                                          }
+                                        </p>
+                                      </div>
+
+                                      {/* Worst Case - Red */}
+                                      <div className="p-4 rounded-lg border-2 border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <AlertTriangle className="w-4 h-4 text-red-600" />
+                                          <p className="text-xs font-semibold text-red-700 dark:text-red-400">
+                                            {
+                                              project.project_analysis[0]
+                                                .scenarios[2].label
+                                            }
+                                          </p>
+                                        </div>
+                                        <p className="text-lg font-bold text-red-900 dark:text-red-300 mb-2">
+                                          {
+                                            project.project_analysis[0]
+                                              .scenarios[2].price
+                                          }
+                                        </p>
+                                        <p className="text-xs text-red-700 dark:text-red-400">
+                                          {
+                                            project.project_analysis[0]
+                                              .scenarios[2].description
+                                          }
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    {/* Cost Variables */}
+                                    {project.project_analysis[0].variables &&
+                                      project.project_analysis[0].variables
+                                        .length > 0 && (
+                                        <div className="p-3 rounded-md bg-muted">
+                                          <p className="text-xs text-muted-foreground mb-2">
+                                            Cost Variables
+                                          </p>
+                                          <div className="flex flex-wrap gap-1">
+                                            {project.project_analysis[0].variables.map(
+                                              (variable, idx) => (
+                                                <span
+                                                  key={idx}
+                                                  className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary"
+                                                >
+                                                  {variable}
+                                                </span>
+                                              )
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                    {/* Pricing Disclaimer */}
+                                    <div className="p-3 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+                                      <p className="text-xs text-amber-800 dark:text-amber-400">
+                                        <strong>Note:</strong> Estimates
+                                        sourced from 2026 National Averages.
+                                        Final quote requires site visit.
+                                      </p>
+                                    </div>
+                                  </>
+                                ) : (
+                                  // Legacy display for old analyses
+                                  <div className="p-3 rounded-md bg-muted">
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                      Cost Estimate
+                                    </p>
+                                    <p className="text-lg font-bold text-primary">
+                                      {project.project_analysis[0]
+                                        .cost_estimate_min &&
+                                        formatCurrency(
+                                          project.project_analysis[0]
+                                            .cost_estimate_min
+                                        )}{" "}
+                                      -{" "}
+                                      {project.project_analysis[0]
+                                        .cost_estimate_max &&
+                                        formatCurrency(
+                                          project.project_analysis[0]
+                                            .cost_estimate_max
+                                        )}
+                                    </p>
+                                    {project.project_analysis[0]
+                                      .cost_reasoning && (
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {
+                                          project.project_analysis[0]
+                                            .cost_reasoning
+                                        }
+                                      </p>
                                     )}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    {project.project_analysis[0].cost_reasoning}
-                                  </p>
-                                </div>
+                                  </div>
+                                )}
 
                                 <div className="p-3 rounded-md border bg-card">
                                   <p className="text-xs text-muted-foreground mb-1">

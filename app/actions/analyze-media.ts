@@ -7,38 +7,96 @@ import {
   isVideoMimeType,
   isImageMimeType,
 } from "@/lib/gemini";
+import {
+  PRICE_BOOK,
+  getPriceContext,
+  getTradeCategories,
+  type TradeCategory,
+} from "@/lib/price-book.updated";
 import type { AnalysisResponse, DamageAnalysis } from "@/types";
 
-const SYSTEM_PROMPT = `You are a veteran general contractor with 30+ years of experience in residential and commercial repairs. You have extensive knowledge of labor and material costs across the United States.
+/**
+ * Helper function to clean JSON responses from Gemini
+ * Removes markdown code blocks if present
+ */
+function cleanJsonResponse(responseText: string): string {
+  let jsonString = responseText.trim();
+
+  // Remove markdown code blocks if present
+  if (jsonString.startsWith("```json")) {
+    jsonString = jsonString.slice(7);
+  } else if (jsonString.startsWith("```")) {
+    jsonString = jsonString.slice(3);
+  }
+  if (jsonString.endsWith("```")) {
+    jsonString = jsonString.slice(0, -3);
+  }
+
+  return jsonString.trim();
+}
+
+// Step 1: Identify the trade category from the damage
+const TRADE_IDENTIFICATION_PROMPT = `You are a veteran general contractor. Analyze this image or video and identify the PRIMARY trade category that would handle this repair.
+
+Available trade categories:
+${getTradeCategories().join(", ")}
+
+You MUST respond with ONLY a valid JSON object (no markdown, no code blocks) with this exact field:
+{
+  "trade_category": "one of the trade categories from the list above"
+}
+
+If the damage involves multiple trades, choose the PRIMARY trade. If unclear, use "General".`;
+
+// Step 2: Generate scenario-based estimate with contextual pricing data
+function getAnalysisPrompt(tradeCategory: TradeCategory): string {
+  const priceContext = getPriceContext(tradeCategory);
+
+  return `You are a veteran general contractor with 30+ years of experience in residential and commercial repairs.
 
 Analyze this image or video carefully. Identify any visible damage, wear, or issues that need repair.
+
+CONTEXTUAL PRICING DATA:
+${priceContext}
+
+Use the pricing data above as a reference to ground your estimates in real national averages. Adjust based on visible complexity.
 
 You MUST respond with ONLY a valid JSON object (no markdown, no code blocks, no explanations) with these exact fields:
 {
   "damage_type": "Brief description of the type of damage observed (e.g., 'Water damage to ceiling', 'Cracked foundation', 'Rotting wood siding')",
   "severity_score_1_to_10": <number from 1-10 where 1 is cosmetic and 10 is structural emergency>,
-  "cost_estimate_min": <minimum estimated repair cost in USD as a number, no dollar sign>,
-  "cost_estimate_max": <maximum estimated repair cost in USD as a number, no dollar sign>,
-  "cost_reasoning": "2-3 sentences explaining what factors into your cost estimate: materials needed, labor hours, complexity, and any assumptions you're making about the scope",
+  "trade_category": "${tradeCategory}",
+  "scenarios": [
+    {
+      "label": "Best Case",
+      "price": "$X - $Y",
+      "description": "Explanation of why costs would be on the lower end (e.g., minimal damage, easy access, standard materials)"
+    },
+    {
+      "label": "Most Likely",
+      "price": "$X - $Y",
+      "description": "The most probable scenario based on visible damage and typical complications"
+    },
+    {
+      "label": "Worst Case",
+      "price": "$X - $Y",
+      "description": "If hidden damage exists, complications arise, or premium materials needed"
+    }
+  ],
+  "variables": ["List", "of", "factors", "that", "drive", "cost", "variations"],
   "summary_for_homeowner": "A friendly 2-3 sentence explanation for the homeowner about what you see, what might have caused it, and general urgency level. Do NOT mention specific costs here.",
   "suggested_project_name": "A short, descriptive project name (3-5 words) like 'Kitchen Water Damage Repair' or 'Basement Foundation Crack'"
 }
 
-Cost estimation guidelines:
-- For minor repairs (severity 1-3): typically $100-$1,000
-- For moderate repairs (severity 4-6): typically $1,000-$5,000
-- For major repairs (severity 7-8): typically $5,000-$15,000
-- For severe/structural (severity 9-10): typically $15,000+
-- Always provide a range (min to max) to account for regional variation and hidden issues
+IMPORTANT: The three scenarios must be mutually exclusive and cover the full range from best to worst case. Use the contextual pricing data to ensure your estimates are realistic and grounded in national averages.
 
 If you cannot identify any damage or the image/video is unclear, still return the JSON with:
 - damage_type: "No visible damage detected" or "Unable to assess - image unclear"
 - severity_score_1_to_10: 0
-- cost_estimate_min: 0
-- cost_estimate_max: 0
-- cost_reasoning: "No repair costs applicable" or "Unable to estimate without clearer images"
+- scenarios with $0 prices
 - summary_for_homeowner: An appropriate explanation
 - suggested_project_name: "New Assessment Request"`;
+}
 
 /**
  * Analyze media (image or video) using Gemini 2.5 Pro
@@ -96,28 +154,36 @@ export async function analyzeMedia(fileUrl: string): Promise<AnalysisResponse> {
     // Convert to Gemini-compatible format
     const mediaPart = bufferToGenerativePart(buffer, mimeType);
 
-    // Send to Gemini for analysis
-    const result = await geminiModel.generateContent([
-      SYSTEM_PROMPT,
+    // STEP 1: Identify the trade category first
+    console.log("Step 1: Identifying trade category...");
+    const tradeResult = await geminiModel.generateContent([
+      TRADE_IDENTIFICATION_PROMPT,
       mediaPart,
     ]);
 
-    const responseText = result.response.text();
+    const tradeResponseText = tradeResult.response.text();
+    let tradeJsonString = cleanJsonResponse(tradeResponseText);
+    const tradeIdentification = JSON.parse(tradeJsonString);
 
-    // Parse the JSON response
-    // Handle potential markdown code blocks in response
-    let jsonString = responseText.trim();
+    const tradeCategory = tradeIdentification.trade_category as TradeCategory;
 
-    // Remove markdown code blocks if present
-    if (jsonString.startsWith("```json")) {
-      jsonString = jsonString.slice(7);
-    } else if (jsonString.startsWith("```")) {
-      jsonString = jsonString.slice(3);
+    if (!PRICE_BOOK[tradeCategory]) {
+      console.warn(`Unknown trade category: ${tradeCategory}, defaulting to General`);
+      tradeIdentification.trade_category = "General";
     }
-    if (jsonString.endsWith("```")) {
-      jsonString = jsonString.slice(0, -3);
-    }
-    jsonString = jsonString.trim();
+
+    console.log(`Identified trade category: ${tradeCategory}`);
+
+    // STEP 2: Generate full analysis with contextual pricing data
+    console.log("Step 2: Generating scenario-based estimate with price book context...");
+    const analysisPrompt = getAnalysisPrompt(tradeCategory);
+    const analysisResult = await geminiModel.generateContent([
+      analysisPrompt,
+      mediaPart,
+    ]);
+
+    const responseText = analysisResult.response.text();
+    let jsonString = cleanJsonResponse(responseText);
 
     const analysis: DamageAnalysis = JSON.parse(jsonString);
 
@@ -125,9 +191,10 @@ export async function analyzeMedia(fileUrl: string): Promise<AnalysisResponse> {
     if (
       typeof analysis.damage_type !== "string" ||
       typeof analysis.severity_score_1_to_10 !== "number" ||
-      typeof analysis.cost_estimate_min !== "number" ||
-      typeof analysis.cost_estimate_max !== "number" ||
-      typeof analysis.cost_reasoning !== "string" ||
+      typeof analysis.trade_category !== "string" ||
+      !Array.isArray(analysis.scenarios) ||
+      analysis.scenarios.length !== 3 ||
+      !Array.isArray(analysis.variables) ||
       typeof analysis.summary_for_homeowner !== "string" ||
       typeof analysis.suggested_project_name !== "string"
     ) {
@@ -137,17 +204,24 @@ export async function analyzeMedia(fileUrl: string): Promise<AnalysisResponse> {
       };
     }
 
+    // Validate each scenario
+    for (const scenario of analysis.scenarios) {
+      if (
+        typeof scenario.label !== "string" ||
+        typeof scenario.price !== "string" ||
+        typeof scenario.description !== "string"
+      ) {
+        return {
+          success: false,
+          error: "Invalid scenario format in AI response",
+        };
+      }
+    }
+
     // Clamp severity score to valid range
     analysis.severity_score_1_to_10 = Math.max(
       0,
       Math.min(10, Math.round(analysis.severity_score_1_to_10))
-    );
-
-    // Ensure cost estimates are non-negative
-    analysis.cost_estimate_min = Math.max(0, Math.round(analysis.cost_estimate_min));
-    analysis.cost_estimate_max = Math.max(
-      analysis.cost_estimate_min,
-      Math.round(analysis.cost_estimate_max)
     );
 
     return {
@@ -209,42 +283,59 @@ export async function analyzeMultipleMedia(
       })
     );
 
-    // Enhanced prompt for multiple images
-    const multiImagePrompt = `${SYSTEM_PROMPT}
+    // STEP 1: Identify the trade category first
+    console.log("Step 1: Identifying trade category from multiple media...");
+    const multiImageTradePrompt = `${TRADE_IDENTIFICATION_PROMPT}
 
-You are analyzing ${fileUrls.length} images/videos of the same repair issue from different angles. Consider all views when making your assessment and provide a comprehensive analysis with accurate cost estimates.`;
+You are analyzing ${fileUrls.length} images/videos of the same repair issue from different angles. Consider all views when identifying the primary trade category.`;
 
-    // Send all media to Gemini
+    const tradeResult = await geminiModel.generateContent([
+      multiImageTradePrompt,
+      ...mediaParts,
+    ]);
+
+    const tradeResponseText = tradeResult.response.text();
+    let tradeJsonString = cleanJsonResponse(tradeResponseText);
+    const tradeIdentification = JSON.parse(tradeJsonString);
+
+    const tradeCategory = tradeIdentification.trade_category as TradeCategory;
+
+    if (!PRICE_BOOK[tradeCategory]) {
+      console.warn(`Unknown trade category: ${tradeCategory}, defaulting to General`);
+      tradeIdentification.trade_category = "General";
+    }
+
+    console.log(`Identified trade category: ${tradeCategory}`);
+
+    // STEP 2: Generate full analysis with contextual pricing data
+    console.log("Step 2: Generating scenario-based estimate with price book context...");
+    const analysisPrompt = getAnalysisPrompt(tradeCategory);
+    const multiImageAnalysisPrompt = `${analysisPrompt}
+
+You are analyzing ${fileUrls.length} images/videos of the same repair issue from different angles. Consider all views when making your assessment and provide a comprehensive analysis.`;
+
     const result = await geminiModel.generateContent([
-      multiImagePrompt,
+      multiImageAnalysisPrompt,
       ...mediaParts,
     ]);
 
     const responseText = result.response.text();
-
-    // Parse response (same logic as single image)
-    let jsonString = responseText.trim();
-    if (jsonString.startsWith("```json")) {
-      jsonString = jsonString.slice(7);
-    } else if (jsonString.startsWith("```")) {
-      jsonString = jsonString.slice(3);
-    }
-    if (jsonString.endsWith("```")) {
-      jsonString = jsonString.slice(0, -3);
-    }
-    jsonString = jsonString.trim();
+    let jsonString = cleanJsonResponse(responseText);
 
     const analysis: DamageAnalysis = JSON.parse(jsonString);
 
-    // Clamp and validate values
+    // Validate scenarios
+    if (!Array.isArray(analysis.scenarios) || analysis.scenarios.length !== 3) {
+      return {
+        success: false,
+        error: "Invalid scenario format in AI response",
+      };
+    }
+
+    // Clamp severity score
     analysis.severity_score_1_to_10 = Math.max(
       0,
       Math.min(10, Math.round(analysis.severity_score_1_to_10))
-    );
-    analysis.cost_estimate_min = Math.max(0, Math.round(analysis.cost_estimate_min));
-    analysis.cost_estimate_max = Math.max(
-      analysis.cost_estimate_min,
-      Math.round(analysis.cost_estimate_max)
     );
 
     return {

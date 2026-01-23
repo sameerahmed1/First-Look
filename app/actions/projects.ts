@@ -60,16 +60,20 @@ export async function createProject(input: CreateProjectInput) {
       console.error("Error adding project media:", mediaError);
     }
 
-    // Save the analysis
+    // Save the analysis (supports both new scenario-based and legacy formats)
     const { error: analysisError } = await supabase
       .from("project_analysis")
       .insert({
         project_id: project.id,
         damage_type: analysis.damage_type,
         severity_score: analysis.severity_score_1_to_10,
-        cost_estimate_min: analysis.cost_estimate_min,
-        cost_estimate_max: analysis.cost_estimate_max,
-        cost_reasoning: analysis.cost_reasoning,
+        trade_category: analysis.trade_category || null,
+        scenarios: analysis.scenarios ? JSON.stringify(analysis.scenarios) : null,
+        variables: analysis.variables ? JSON.stringify(analysis.variables) : null,
+        // Legacy fields for backward compatibility
+        cost_estimate_min: analysis.cost_estimate_min || 0,
+        cost_estimate_max: analysis.cost_estimate_max || 0,
+        cost_reasoning: analysis.cost_reasoning || null,
         summary: analysis.summary_for_homeowner,
       });
 

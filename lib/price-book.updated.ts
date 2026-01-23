@@ -1321,3 +1321,32 @@ export const PRICE_BOOK: Record<TradeCategory, Record<string, PriceScenario>> = 
     }
   }
 };
+
+/**
+ * Get formatted pricing context for a specific trade category
+ * to be injected into the AI system prompt
+ */
+export function getPriceContext(tradeCategory: TradeCategory): string {
+  const tradeData = PRICE_BOOK[tradeCategory];
+
+  if (!tradeData) {
+    return "No pricing data available for this trade category.";
+  }
+
+  let context = `\n=== ${tradeCategory.replace(/_/g, " ").toUpperCase()} PRICING DATA (2026 National Averages) ===\n\n`;
+
+  for (const [key, scenario] of Object.entries(tradeData)) {
+    context += `${scenario.name}:\n`;
+    context += `  Range: $${scenario.low.toLocaleString()} - $${scenario.high.toLocaleString()} ${scenario.unit}\n`;
+    context += `  Details: ${scenario.description}\n\n`;
+  }
+
+  return context;
+}
+
+/**
+ * Get all trade categories for trade identification
+ */
+export function getTradeCategories(): TradeCategory[] {
+  return Object.keys(PRICE_BOOK) as TradeCategory[];
+}

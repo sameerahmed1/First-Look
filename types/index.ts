@@ -1,14 +1,28 @@
 /**
+ * Pricing scenario for scenario-based estimates
+ */
+export interface PricingScenario {
+  label: "Best Case" | "Most Likely" | "Worst Case";
+  price: string; // e.g., "$1,200 - $1,500"
+  description: string;
+}
+
+/**
  * Analysis result from Gemini for damage assessment
+ * Updated to support scenario-based pricing with trade categories
  */
 export interface DamageAnalysis {
   damage_type: string;
   severity_score_1_to_10: number;
-  cost_estimate_min: number;
-  cost_estimate_max: number;
-  cost_reasoning: string;
+  trade_category: string;
+  scenarios: PricingScenario[];
+  variables: string[]; // Factors driving the cost
   summary_for_homeowner: string;
   suggested_project_name: string;
+  // Legacy fields for backward compatibility (optional)
+  cost_estimate_min?: number;
+  cost_estimate_max?: number;
+  cost_reasoning?: string;
 }
 
 /**

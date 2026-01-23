@@ -141,7 +141,7 @@ export async function getProjectById(projectId: string) {
 
 export async function updateProjectStatus(
   projectId: string,
-  status: "pending" | "analyzed" | "quoted" | "completed"
+  status: string
 ) {
   const supabase = await createServerSupabaseClient();
 

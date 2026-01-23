@@ -115,7 +115,10 @@ export function DashboardClient({
     }
   };
 
-  const handleStatusChange = async (projectId: string, status: string) => {
+  const handleStatusChange = async (
+    projectId: string,
+    status: "new" | "pending" | "analyzed" | "reviewed" | "quoted" | "completed" | "archived"
+  ) => {
     await updateProjectStatus(projectId, status);
   };
 

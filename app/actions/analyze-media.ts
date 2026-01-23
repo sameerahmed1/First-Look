@@ -201,7 +201,7 @@ export async function analyzeMultipleMedia(
       fileUrls.map(async (url) => {
         const response = await fetch(url);
         if (!response.ok) {
-          throw new Error(`Failed to fetch file: ${url}`);
+          throw new Error("Failed to fetch file: " + url);
         }
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
@@ -434,7 +434,7 @@ export async function analyzeProjectWithContext(
       fileUrls.map(async (url) => {
         const response = await fetch(url);
         if (!response.ok) {
-          throw new Error(`Failed to fetch file: ${url}`);
+          throw new Error("Failed to fetch file: " + url);
         }
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);

@@ -23,21 +23,30 @@ import {
   Copy,
   Trash2,
   ExternalLink,
-  DollarSign,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
   FileText,
+  Sparkles,
+  Clock,
+  DollarSign,
+  CheckCircle,
+  AlertCircle,
+  Eye,
+  Archive,
   Image as ImageIcon,
   Video,
 } from "lucide-react";
+import { JobBriefCard } from "./job-brief-card";
+import type { CaptureData, AIAnalysis } from "@/types";
 
 interface Project {
   id: string;
   customer_name: string;
+  customer_email: string | null;
+  customer_phone: string | null;
   project_name: string;
   status: string;
   created_at: string;
+  capture_data: CaptureData | null;
+  ai_analysis: AIAnalysis | null;
   project_media: Array<{
     id: string;
     file_url: string;
@@ -65,12 +74,14 @@ interface DashboardClientProps {
   user: User;
   projects: Project[];
   uploadLinks: UploadLink[];
+  businessName: string | null;
 }
 
 export function DashboardClient({
   user,
   projects,
   uploadLinks,
+  businessName,
 }: DashboardClientProps) {
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [linkLabel, setLinkLabel] = useState("");
@@ -104,40 +115,29 @@ export function DashboardClient({
     }
   };
 
-  const handleStatusChange = async (
-    projectId: string,
-    status: "pending" | "analyzed" | "quoted" | "completed"
-  ) => {
+  const handleStatusChange = async (projectId: string, status: string) => {
     await updateProjectStatus(projectId, status);
-  };
-
-  const getSeverityColor = (score: number) => {
-    if (score <= 3) return "text-green-600";
-    if (score <= 6) return "text-yellow-600";
-    return "text-red-600";
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case "new":
+        return <Sparkles className="w-4 h-4 text-blue-500" />;
       case "pending":
         return <Clock className="w-4 h-4 text-yellow-500" />;
       case "analyzed":
-        return <FileText className="w-4 h-4 text-blue-500" />;
+        return <FileText className="w-4 h-4 text-purple-500" />;
+      case "reviewed":
+        return <Eye className="w-4 h-4 text-indigo-500" />;
       case "quoted":
         return <DollarSign className="w-4 h-4 text-green-500" />;
       case "completed":
         return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case "archived":
+        return <Archive className="w-4 h-4 text-gray-500" />;
       default:
-        return null;
+        return <AlertCircle className="w-4 h-4 text-gray-400" />;
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-    }).format(amount);
   };
 
   return (
@@ -146,7 +146,9 @@ export function DashboardClient({
       <header className="border-b bg-card">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold">First Look</h1>
+            <h1 className="text-xl font-bold">
+              {businessName || "First Look"}
+            </h1>
             <p className="text-sm text-muted-foreground">{user.email}</p>
           </div>
           <form action={signOut}>
@@ -311,122 +313,27 @@ export function DashboardClient({
                           </div>
                         </div>
 
-                        {/* Expanded View */}
+                        {/* Expanded View: Strategic Job Brief */}
                         {selectedProject?.id === project.id && (
-                          <div className="mt-4 pt-4 border-t space-y-4">
-                            {/* Media Preview */}
-                            {project.project_media.length > 0 && (
-                              <div className="flex gap-2 overflow-x-auto pb-2">
-                                {project.project_media.map((media) => (
-                                  <div
-                                    key={media.id}
-                                    className="relative w-20 h-20 flex-shrink-0 rounded-md overflow-hidden bg-muted"
-                                  >
-                                    {media.file_type === "video" ? (
-                                      <div className="w-full h-full flex items-center justify-center">
-                                        <Video className="w-8 h-8 text-muted-foreground" />
-                                      </div>
-                                    ) : (
-                                      // eslint-disable-next-line @next/next/no-img-element
-                                      <img
-                                        src={media.file_url}
-                                        alt="Project media"
-                                        className="w-full h-full object-cover"
-                                      />
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Analysis */}
-                            {project.project_analysis[0] && (
-                              <div className="space-y-3">
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                  <div className="p-3 rounded-md bg-muted">
-                                    <p className="text-xs text-muted-foreground mb-1">
-                                      Damage Type
-                                    </p>
-                                    <p className="text-sm font-medium">
-                                      {project.project_analysis[0].damage_type}
-                                    </p>
-                                  </div>
-                                  <div className="p-3 rounded-md bg-muted">
-                                    <p className="text-xs text-muted-foreground mb-1">
-                                      Severity
-                                    </p>
-                                    <p
-                                      className={`text-sm font-medium ${getSeverityColor(project.project_analysis[0].severity_score)}`}
-                                    >
-                                      {project.project_analysis[0].severity_score}{" "}
-                                      / 10
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <div className="p-3 rounded-md bg-muted">
-                                  <p className="text-xs text-muted-foreground mb-1">
-                                    Cost Estimate
-                                  </p>
-                                  <p className="text-lg font-bold text-primary">
-                                    {formatCurrency(
-                                      project.project_analysis[0].cost_estimate_min
-                                    )}{" "}
-                                    -{" "}
-                                    {formatCurrency(
-                                      project.project_analysis[0].cost_estimate_max
-                                    )}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    {project.project_analysis[0].cost_reasoning}
-                                  </p>
-                                </div>
-
-                                <div className="p-3 rounded-md border bg-card">
-                                  <p className="text-xs text-muted-foreground mb-1">
-                                    Summary
-                                  </p>
-                                  <p className="text-sm">
-                                    {project.project_analysis[0].summary}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Actions */}
-                            <div className="flex flex-wrap gap-2 pt-2">
-                              <select
-                                value={project.status}
-                                onChange={(e) =>
-                                  handleStatusChange(
-                                    project.id,
-                                    e.target.value as
-                                      | "pending"
-                                      | "analyzed"
-                                      | "quoted"
-                                      | "completed"
-                                  )
+                          <div className="mt-4 pt-4 border-t">
+                            {project.ai_analysis ? (
+                              <JobBriefCard
+                                project={project}
+                                onStatusChange={(status) =>
+                                  handleStatusChange(project.id, status)
                                 }
-                                className="px-3 py-1.5 text-sm border rounded-md bg-background"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <option value="pending">Pending</option>
-                                <option value="analyzed">Analyzed</option>
-                                <option value="quoted">Quoted</option>
-                                <option value="completed">Completed</option>
-                              </select>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteProject(project.id);
-                                }}
-                              >
-                                <Trash2 className="w-4 h-4 mr-1" />
-                                Delete
-                              </Button>
-                            </div>
+                                onDelete={() => handleDeleteProject(project.id)}
+                              />
+                            ) : (
+                              // Fallback for legacy projects without AI analysis
+                              <div className="text-center py-8 text-gray-500">
+                                <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                                <p className="font-medium">Legacy Project</p>
+                                <p className="text-sm">
+                                  This project was created before the Core Flow update.
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

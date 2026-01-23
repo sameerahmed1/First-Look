@@ -7,7 +7,7 @@ import {
   isVideoMimeType,
   isImageMimeType,
 } from "@/lib/gemini";
-import type { AnalysisResponse, DamageAnalysis } from "@/types";
+import type { AnalysisResponse, DamageAnalysis, CaptureData, AIAnalysis } from "@/types";
 
 const SYSTEM_PROMPT = `You are a veteran general contractor with 30+ years of experience in residential and commercial repairs. You have extensive knowledge of labor and material costs across the United States.
 
@@ -253,6 +253,253 @@ You are analyzing ${fileUrls.length} images/videos of the same repair issue from
     };
   } catch (error) {
     console.error("Error analyzing multiple media:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred during analysis",
+    };
+  }
+}
+
+/**
+ * ============================================================================
+ * CORE FLOW: Strategic Job Brief Analysis
+ * ============================================================================
+ * This function accepts structured homeowner input (CaptureData) and media files,
+ * and returns a comprehensive AIAnalysis for the contractor's Strategic Job Brief.
+ */
+
+const CORE_FLOW_SYSTEM_PROMPT = `You are a veteran general contractor with 30+ years of experience in residential and commercial repairs. You have extensive knowledge of labor and material costs, safety protocols, and diagnostic techniques.
+
+You are analyzing a damage assessment request that includes:
+1. Structured homeowner input (problem type, safety checks, home details, context)
+2. Multiple photos/videos of the issue from different angles
+
+Your role is to provide a STRATEGIC JOB BRIEF for the contractor that helps them:
+- Triage urgency and identify the right trade
+- Understand what they're looking at and what might be missing
+- Develop scope hypotheses (what work is likely needed)
+- Provide a realistic price range with clear assumptions
+
+You MUST respond with ONLY a valid JSON object (no markdown, no code blocks, no explanations) with this exact structure:
+
+{
+  "summary": "2-4 sentence executive summary. What do you see? What's the likely root cause? What's the main concern?",
+  "missing_evidence": [
+    "Specific photo or info that would help refine the diagnosis (e.g., 'Photo of attic space above the stain', 'Close-up of flashing around chimney')",
+    "Another specific request if needed"
+  ],
+  "triage": {
+    "urgency": "Emergency" | "24-48hrs" | "Routine",
+    "trade": "Primary trade needed (e.g., 'Roofing', 'Plumbing', 'Electrical', 'HVAC', 'Foundation', 'General Contractor')",
+    "risk_flags": ["Specific risks like 'Active Water Intrusion', 'Mold Risk', 'Electrical Hazard', 'Structural Concern'"]
+  },
+  "scope_hypotheses": [
+    { "item": "Likely scope item 1 (e.g., 'Replace damaged roof flashing')", "selected": true },
+    { "item": "Likely scope item 2 (e.g., 'Repair interior drywall and repaint')", "selected": true },
+    { "item": "Possible scope item 3 (e.g., 'Replace wet attic insulation')", "selected": false },
+    { "item": "Possible scope item 4 if uncertain", "selected": false }
+  ],
+  "price_breakdown": {
+    "range_low": <minimum realistic cost in USD as integer>,
+    "range_high": <maximum realistic cost in USD as integer>,
+    "assumptions": [
+      "Key assumption 1 (e.g., 'Assumes flashing repair only, no structural damage')",
+      "Key assumption 2 (e.g., 'Interior repair limited to one room')",
+      "Key assumption 3 (e.g., 'Standard materials and labor rates')"
+    ],
+    "variables": [
+      "Factor that could increase cost (e.g., 'Extent of water damage to insulation')",
+      "Another variable (e.g., 'Roof pitch and accessibility')",
+      "Another variable (e.g., 'Need for temporary weatherproofing')"
+    ]
+  }
+}
+
+URGENCY GUIDELINES:
+- "Emergency": Active hazards (gas leak, electrical sparking, sewage, structural collapse risk, active flooding) - needs immediate response
+- "24-48hrs": Active damage progression (water intrusion, exposed wiring, broken window in bad weather) - should be addressed very soon
+- "Routine": Stable issue that needs repair but isn't actively getting worse - can be scheduled normally
+
+SCOPE HYPOTHESES:
+- Mark "selected": true for items you're confident are needed based on the evidence
+- Mark "selected": false for items that might be needed but require more investigation
+- List 3-6 scope items total, ordered from most to least certain
+
+PRICING:
+- Provide realistic ranges based on typical U.S. market rates
+- Account for the home size, age, and type from the capture data
+- Be transparent about assumptions (what you're including vs. excluding)
+- Identify variables that could shift the price up or down
+- Minor repairs (urgency=Routine, simple scope): $200-$2,000
+- Moderate repairs (urgency=24-48hrs, multiple scope items): $1,500-$8,000
+- Major repairs (urgency=Emergency or extensive scope): $5,000-$25,000+
+
+MISSING EVIDENCE:
+- List 0-3 specific photos or pieces of information that would help refine the assessment
+- Be specific (not "more photos" but "Photo of attic space directly above the ceiling stain")
+- If you have everything you need, return an empty array: []`;
+
+/**
+ * Analyze project with full context from Guided Capture Wizard
+ * This is the "Brain" of the Core Flow - combines homeowner input + media for Strategic Job Brief
+ *
+ * @param captureData - Structured homeowner input from the wizard
+ * @param fileUrls - Array of media file URLs (photos/videos)
+ * @returns AIAnalysis object for the contractor's Strategic Job Brief
+ */
+export async function analyzeProjectWithContext(
+  captureData: CaptureData,
+  fileUrls: string[]
+): Promise<{ success: boolean; data?: AIAnalysis; error?: string }> {
+  try {
+    if (!fileUrls.length) {
+      return {
+        success: false,
+        error: "No media files provided for analysis",
+      };
+    }
+
+    // Fetch all files and prepare parts
+    const mediaParts = await Promise.all(
+      fileUrls.map(async (url) => {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch file: ${url}`);
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const mimeType = getMimeType(url);
+        return bufferToGenerativePart(buffer, mimeType);
+      })
+    );
+
+    // Build context from capture data
+    const safetyFlags = Object.entries(captureData.safety_checks)
+      .filter(([_, value]) => value === true)
+      .map(([key, _]) => key.replace(/_/g, " "));
+
+    const contextPrompt = `
+HOMEOWNER INPUT:
+- Problem Type: ${captureData.problem_type}
+- Safety Concerns: ${safetyFlags.length > 0 ? safetyFlags.join(", ") : "None reported"}
+- Home Type: ${captureData.home_info.home_type}
+- Year Built: ${captureData.home_info.year_built || "Unknown"}
+- Floors: ${captureData.home_info.floors}
+- Square Footage: ${captureData.home_info.square_footage || "Unknown"}
+- When Noticed: ${captureData.context.when_noticed}
+- Weather Related: ${captureData.context.weather_related ? "Yes" : "No"}
+- Previous Repairs: ${captureData.context.previous_repairs ? "Yes" : "No"}
+- Additional Notes: ${captureData.context.additional_notes || "None"}
+
+MEDIA PROVIDED: ${fileUrls.length} photo(s)/video(s)
+
+Analyze the media in conjunction with this context and provide your Strategic Job Brief.`;
+
+    // Send to Gemini with full context
+    const result = await geminiModel.generateContent([
+      CORE_FLOW_SYSTEM_PROMPT,
+      contextPrompt,
+      ...mediaParts,
+    ]);
+
+    const responseText = result.response.text();
+
+    // Parse the JSON response
+    let jsonString = responseText.trim();
+
+    // Remove markdown code blocks if present
+    if (jsonString.startsWith("```json")) {
+      jsonString = jsonString.slice(7);
+    } else if (jsonString.startsWith("```")) {
+      jsonString = jsonString.slice(3);
+    }
+    if (jsonString.endsWith("```")) {
+      jsonString = jsonString.slice(0, -3);
+    }
+    jsonString = jsonString.trim();
+
+    const analysis: AIAnalysis = JSON.parse(jsonString);
+
+    // Validate the response structure
+    if (
+      typeof analysis.summary !== "string" ||
+      !Array.isArray(analysis.missing_evidence) ||
+      typeof analysis.triage !== "object" ||
+      !Array.isArray(analysis.scope_hypotheses) ||
+      typeof analysis.price_breakdown !== "object"
+    ) {
+      return {
+        success: false,
+        error: "Invalid response format from AI analysis",
+      };
+    }
+
+    // Validate triage
+    if (
+      !["Emergency", "24-48hrs", "Routine"].includes(analysis.triage.urgency) ||
+      typeof analysis.triage.trade !== "string" ||
+      !Array.isArray(analysis.triage.risk_flags)
+    ) {
+      return {
+        success: false,
+        error: "Invalid triage data in AI response",
+      };
+    }
+
+    // Validate scope hypotheses
+    for (const hypothesis of analysis.scope_hypotheses) {
+      if (
+        typeof hypothesis.item !== "string" ||
+        typeof hypothesis.selected !== "boolean"
+      ) {
+        return {
+          success: false,
+          error: "Invalid scope hypothesis structure in AI response",
+        };
+      }
+    }
+
+    // Validate and clamp price breakdown
+    if (
+      typeof analysis.price_breakdown.range_low !== "number" ||
+      typeof analysis.price_breakdown.range_high !== "number" ||
+      !Array.isArray(analysis.price_breakdown.assumptions) ||
+      !Array.isArray(analysis.price_breakdown.variables)
+    ) {
+      return {
+        success: false,
+        error: "Invalid price breakdown structure in AI response",
+      };
+    }
+
+    // Ensure price values are valid
+    analysis.price_breakdown.range_low = Math.max(
+      0,
+      Math.round(analysis.price_breakdown.range_low)
+    );
+    analysis.price_breakdown.range_high = Math.max(
+      analysis.price_breakdown.range_low,
+      Math.round(analysis.price_breakdown.range_high)
+    );
+
+    return {
+      success: true,
+      data: analysis,
+    };
+  } catch (error) {
+    console.error("Error analyzing project with context:", error);
+
+    // Handle specific error types
+    if (error instanceof SyntaxError) {
+      return {
+        success: false,
+        error: "Failed to parse AI response. Please try again.",
+      };
+    }
+
     return {
       success: false,
       error:

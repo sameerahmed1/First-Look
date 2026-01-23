@@ -271,7 +271,7 @@ You are analyzing ${fileUrls.length} images/videos of the same repair issue from
  * and returns a comprehensive AIAnalysis for the contractor's Strategic Job Brief.
  */
 
-const CORE_FLOW_SYSTEM_PROMPT = \`You are a veteran general contractor with 30+ years of experience in residential and commercial repairs. You have extensive knowledge of labor and material costs, safety protocols, and diagnostic techniques.
+const CORE_FLOW_SYSTEM_PROMPT = `You are a veteran general contractor with 30+ years of experience in residential and commercial repairs. You have extensive knowledge of labor and material costs, safety protocols, and diagnostic techniques.
 
 You are analyzing a damage assessment request that includes:
 1. Structured homeowner input (problem type, safety checks, home details, context)
@@ -340,7 +340,7 @@ PRICING:
 MISSING EVIDENCE:
 - List 0-3 specific photos or pieces of information that would help refine the assessment
 - Be specific (not "more photos" but "Photo of attic space directly above the ceiling stain")
-- If you have everything you need, return an empty array: []\`;
+- If you have everything you need, return an empty array: []`;
 
 /**
  * Analyze project with full context from Guided Capture Wizard
@@ -367,7 +367,7 @@ export async function analyzeProjectWithContext(
       fileUrls.map(async (url) => {
         const response = await fetch(url);
         if (!response.ok) {
-          throw new Error(\`Failed to fetch file: \${url}\`);
+          throw new Error(`Failed to fetch file: ${url}`);
         }
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
@@ -381,22 +381,22 @@ export async function analyzeProjectWithContext(
       .filter(([_, value]) => value === true)
       .map(([key, _]) => key.replace(/_/g, " "));
 
-    const contextPrompt = \`
+    const contextPrompt = `
 HOMEOWNER INPUT:
-- Problem Type: \${captureData.problem_type}
-- Safety Concerns: \${safetyFlags.length > 0 ? safetyFlags.join(", ") : "None reported"}
-- Home Type: \${captureData.home_info.home_type}
-- Year Built: \${captureData.home_info.year_built || "Unknown"}
-- Floors: \${captureData.home_info.floors}
-- Square Footage: \${captureData.home_info.square_footage || "Unknown"}
-- When Noticed: \${captureData.context.when_noticed}
-- Weather Related: \${captureData.context.weather_related ? "Yes" : "No"}
-- Previous Repairs: \${captureData.context.previous_repairs ? "Yes" : "No"}
-- Additional Notes: \${captureData.context.additional_notes || "None"}
+- Problem Type: ${captureData.problem_type}
+- Safety Concerns: ${safetyFlags.length > 0 ? safetyFlags.join(", ") : "None reported"}
+- Home Type: ${captureData.home_info.home_type}
+- Year Built: ${captureData.home_info.year_built || "Unknown"}
+- Floors: ${captureData.home_info.floors}
+- Square Footage: ${captureData.home_info.square_footage || "Unknown"}
+- When Noticed: ${captureData.context.when_noticed}
+- Weather Related: ${captureData.context.weather_related ? "Yes" : "No"}
+- Previous Repairs: ${captureData.context.previous_repairs ? "Yes" : "No"}
+- Additional Notes: ${captureData.context.additional_notes || "None"}
 
-MEDIA PROVIDED: \${fileUrls.length} photo(s)/video(s)
+MEDIA PROVIDED: ${fileUrls.length} photo(s)/video(s)
 
-Analyze the media in conjunction with this context and provide your Strategic Job Brief.\`;
+Analyze the media in conjunction with this context and provide your Strategic Job Brief.`;
 
     // Send to Gemini with full context
     const result = await geminiModel.generateContent([

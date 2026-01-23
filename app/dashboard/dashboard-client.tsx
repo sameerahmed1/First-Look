@@ -52,6 +52,29 @@ interface Project {
     cost_reasoning: string;
     summary: string;
   }>;
+  // New wizard flow fields
+  ai_analysis?: {
+    summary: string;
+    missing_evidence: string[];
+    triage: {
+      urgency: string;
+      trade: string;
+      risk_flags: string[];
+    };
+    scope_hypotheses: Array<{
+      item: string;
+      selected: boolean;
+    }>;
+    price_breakdown: {
+      scenarios: Array<{
+        label: "Best Case" | "Most Likely" | "Worst Case";
+        price: number;
+        description: string;
+      }>;
+      variables: string[];
+    };
+  };
+  capture_data?: any;
 }
 
 interface UploadLink {
@@ -339,8 +362,102 @@ export function DashboardClient({
                               </div>
                             )}
 
-                            {/* Analysis */}
-                            {project.project_analysis[0] && (
+                            {/* Analysis - New Wizard Flow */}
+                            {project.ai_analysis && (
+                              <div className="space-y-4">
+                                {/* Triage Info */}
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                  <div className="p-3 rounded-md bg-muted">
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                      Urgency
+                                    </p>
+                                    <p className="text-sm font-medium">
+                                      {project.ai_analysis.triage.urgency}
+                                    </p>
+                                  </div>
+                                  <div className="p-3 rounded-md bg-muted">
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                      Trade
+                                    </p>
+                                    <p className="text-sm font-medium">
+                                      {project.ai_analysis.triage.trade}
+                                    </p>
+                                  </div>
+                                  <div className="p-3 rounded-md bg-muted">
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                      Risk Flags
+                                    </p>
+                                    <p className="text-sm font-medium">
+                                      {project.ai_analysis.triage.risk_flags.length || "None"}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* 3-Scenario Pricing Grid */}
+                                <div>
+                                  <p className="text-sm font-semibold mb-3">Price Estimates</p>
+                                  <div className="grid gap-3 sm:grid-cols-3">
+                                    {project.ai_analysis.price_breakdown.scenarios.map((scenario, idx) => (
+                                      <div
+                                        key={idx}
+                                        className={`p-4 rounded-lg border-2 ${
+                                          scenario.label === "Best Case"
+                                            ? "border-green-500 bg-green-50"
+                                            : scenario.label === "Most Likely"
+                                            ? "border-blue-500 bg-blue-50 ring-2 ring-blue-300"
+                                            : "border-red-500 bg-red-50"
+                                        }`}
+                                      >
+                                        <p className="text-xs font-semibold text-muted-foreground mb-1">
+                                          {scenario.label}
+                                        </p>
+                                        <p className="text-2xl font-bold mb-2">
+                                          {formatCurrency(scenario.price)}
+                                        </p>
+                                        <p className="text-xs text-gray-600">
+                                          {scenario.description}
+                                        </p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mt-2 text-center">
+                                    Estimates sourced from 2026 National Averages. Final quote requires site visit.
+                                  </p>
+                                </div>
+
+                                {/* Summary */}
+                                <div className="p-3 rounded-md border bg-card">
+                                  <p className="text-xs text-muted-foreground mb-1">
+                                    AI Summary
+                                  </p>
+                                  <p className="text-sm">
+                                    {project.ai_analysis.summary}
+                                  </p>
+                                </div>
+
+                                {/* Scope Hypotheses */}
+                                {project.ai_analysis.scope_hypotheses.length > 0 && (
+                                  <div className="p-3 rounded-md border bg-card">
+                                    <p className="text-xs text-muted-foreground mb-2">
+                                      Likely Scope Items
+                                    </p>
+                                    <ul className="space-y-1">
+                                      {project.ai_analysis.scope_hypotheses
+                                        .filter((h) => h.selected)
+                                        .map((hypothesis, idx) => (
+                                          <li key={idx} className="text-sm flex items-start gap-2">
+                                            <CheckCircle className="w-3 h-3 text-green-600 mt-0.5 flex-shrink-0" />
+                                            <span>{hypothesis.item}</span>
+                                          </li>
+                                        ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Analysis - Legacy Format (Backward Compatibility) */}
+                            {!project.ai_analysis && project.project_analysis[0] && (
                               <div className="space-y-3">
                                 <div className="grid gap-3 sm:grid-cols-2">
                                   <div className="p-3 rounded-md bg-muted">

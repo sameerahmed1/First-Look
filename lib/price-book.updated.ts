@@ -1321,3 +1321,44 @@ export const PRICE_BOOK: Record<TradeCategory, Record<string, PriceScenario>> = 
     }
   }
 };
+
+/**
+ * Get formatted pricing context for a specific trade category
+ * This is injected into the AI prompt to provide accurate pricing data
+ */
+export function getPriceContext(tradeCategory: TradeCategory): string {
+  const scenarios = PRICE_BOOK[tradeCategory];
+
+  let context = `\n=== ${tradeCategory.replace(/_/g, " ").toUpperCase()} PRICING DATA ===\n\n`;
+
+  for (const [key, scenario] of Object.entries(scenarios)) {
+    context += `${key}:\n`;
+    context += `  - Range: $${scenario.low.toLocaleString()} - $${scenario.high.toLocaleString()} ${scenario.unit}\n`;
+    context += `  - Description: ${scenario.description}\n\n`;
+  }
+
+  return context;
+}
+
+/**
+ * Map problem type string to trade category
+ */
+export function mapProblemTypeToTrade(problemType: string): TradeCategory {
+  const lowerProblem = problemType.toLowerCase();
+
+  if (lowerProblem.includes("roof")) return "Roofing";
+  if (lowerProblem.includes("plumb") || lowerProblem.includes("leak") || lowerProblem.includes("water")) return "Plumbing";
+  if (lowerProblem.includes("electric") || lowerProblem.includes("outlet") || lowerProblem.includes("wiring")) return "Electrical";
+  if (lowerProblem.includes("hvac") || lowerProblem.includes("heating") || lowerProblem.includes("cooling") || lowerProblem.includes("ac")) return "HVAC";
+  if (lowerProblem.includes("foundation") || lowerProblem.includes("structural") || lowerProblem.includes("concrete")) return "Concrete_Masonry";
+  if (lowerProblem.includes("drywall") || lowerProblem.includes("paint")) return "Drywall_Paint";
+  if (lowerProblem.includes("floor")) return "Flooring";
+  if (lowerProblem.includes("window") || lowerProblem.includes("door")) return "Windows_Doors";
+  if (lowerProblem.includes("siding") || lowerProblem.includes("exterior")) return "Siding_Exterior";
+  if (lowerProblem.includes("mold") || lowerProblem.includes("water damage")) return "Water_Mold_Restoration";
+  if (lowerProblem.includes("insulation")) return "Insulation";
+  if (lowerProblem.includes("appliance")) return "Appliances";
+  if (lowerProblem.includes("carpet") || lowerProblem.includes("wood")) return "Carpentry";
+
+  return "General";
+}

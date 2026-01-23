@@ -8,6 +8,7 @@ import {
   isImageMimeType,
 } from "@/lib/gemini";
 import type { AnalysisResponse, DamageAnalysis, CaptureData, AIAnalysis } from "@/types";
+import { getPriceContext, mapProblemTypeToTrade } from "@/lib/price-book.updated";
 
 const SYSTEM_PROMPT = `You are a veteran general contractor with 30+ years of experience in residential and commercial repairs. You have extensive knowledge of labor and material costs across the United States.
 
@@ -271,17 +272,21 @@ You are analyzing ${fileUrls.length} images/videos of the same repair issue from
  * and returns a comprehensive AIAnalysis for the contractor's Strategic Job Brief.
  */
 
-const CORE_FLOW_SYSTEM_PROMPT = `You are a veteran general contractor with 30+ years of experience in residential and commercial repairs. You have extensive knowledge of labor and material costs, safety protocols, and diagnostic techniques.
+function buildCoreFlowPrompt(priceContext: string): string {
+  return `You are a veteran general contractor with 30+ years of experience in residential and commercial repairs. You have extensive knowledge of labor and material costs, safety protocols, and diagnostic techniques.
 
 You are analyzing a damage assessment request that includes:
 1. Structured homeowner input (problem type, safety checks, home details, context)
 2. Multiple photos/videos of the issue from different angles
+3. CONTEXTUAL PRICING DATA from 2026 National Averages (provided below)
 
 Your role is to provide a STRATEGIC JOB BRIEF for the contractor that helps them:
 - Triage urgency and identify the right trade
 - Understand what they're looking at and what might be missing
 - Develop scope hypotheses (what work is likely needed)
-- Provide a realistic price range with clear assumptions
+- Provide 3 pricing scenarios (Best Case, Most Likely, Worst Case) using the pricing data
+
+${priceContext}
 
 You MUST respond with ONLY a valid JSON object (no markdown, no code blocks, no explanations) with this exact structure:
 
@@ -303,15 +308,25 @@ You MUST respond with ONLY a valid JSON object (no markdown, no code blocks, no 
     { "item": "Possible scope item 4 if uncertain", "selected": false }
   ],
   "price_breakdown": {
-    "range_low": <minimum realistic cost in USD as integer>,
-    "range_high": <maximum realistic cost in USD as integer>,
-    "assumptions": [
-      "Key assumption 1 (e.g., 'Assumes flashing repair only, no structural damage')",
-      "Key assumption 2 (e.g., 'Interior repair limited to one room')",
-      "Key assumption 3 (e.g., 'Standard materials and labor rates')"
+    "scenarios": [
+      {
+        "label": "Best Case",
+        "price": <dollar amount as integer>,
+        "description": "Why this is the best case (minimal scope, easy access, no complications)"
+      },
+      {
+        "label": "Most Likely",
+        "price": <dollar amount as integer>,
+        "description": "Standard scope based on what you see in the photos"
+      },
+      {
+        "label": "Worst Case",
+        "price": <dollar amount as integer>,
+        "description": "If complications exist (hidden damage, difficult access, code upgrades needed)"
+      }
     ],
     "variables": [
-      "Factor that could increase cost (e.g., 'Extent of water damage to insulation')",
+      "Factor that could increase/decrease cost (e.g., 'Extent of water damage to insulation')",
       "Another variable (e.g., 'Roof pitch and accessibility')",
       "Another variable (e.g., 'Need for temporary weatherproofing')"
     ]
@@ -328,19 +343,20 @@ SCOPE HYPOTHESES:
 - Mark "selected": false for items that might be needed but require more investigation
 - List 3-6 scope items total, ordered from most to least certain
 
-PRICING:
-- Provide realistic ranges based on typical U.S. market rates
+PRICING SCENARIOS - CRITICAL INSTRUCTIONS:
+- Use the CONTEXTUAL PRICING DATA provided above to inform your estimates
+- Best Case: Minimum realistic cost (simplest scope, easy access, no surprises)
+- Most Likely: Standard cost based on typical conditions for this type of repair
+- Worst Case: Maximum realistic cost (complications, difficult access, additional work discovered)
+- The three scenarios should reflect a realistic spread, not just arbitrary numbers
+- Reference specific line items from the pricing data when relevant
 - Account for the home size, age, and type from the capture data
-- Be transparent about assumptions (what you're including vs. excluding)
-- Identify variables that could shift the price up or down
-- Minor repairs (urgency=Routine, simple scope): $200-$2,000
-- Moderate repairs (urgency=24-48hrs, multiple scope items): $1,500-$8,000
-- Major repairs (urgency=Emergency or extensive scope): $5,000-$25,000+
 
 MISSING EVIDENCE:
 - List 0-3 specific photos or pieces of information that would help refine the assessment
 - Be specific (not "more photos" but "Photo of attic space directly above the ceiling stain")
 - If you have everything you need, return an empty array: []`;
+}
 
 /**
  * Analyze project with full context from Guided Capture Wizard
@@ -361,6 +377,10 @@ export async function analyzeProjectWithContext(
         error: "No media files provided for analysis",
       };
     }
+
+    // Map problem type to trade category and get relevant pricing data
+    const tradeCategory = mapProblemTypeToTrade(captureData.problem_type);
+    const priceContext = getPriceContext(tradeCategory);
 
     // Fetch all files and prepare parts
     const mediaParts = await Promise.all(
@@ -398,9 +418,12 @@ MEDIA PROVIDED: ${fileUrls.length} photo(s)/video(s)
 
 Analyze the media in conjunction with this context and provide your Strategic Job Brief.`;
 
+    // Build the system prompt with contextual pricing data
+    const systemPrompt = buildCoreFlowPrompt(priceContext);
+
     // Send to Gemini with full context
     const result = await geminiModel.generateContent([
-      CORE_FLOW_SYSTEM_PROMPT,
+      systemPrompt,
       contextPrompt,
       ...mediaParts,
     ]);
@@ -464,9 +487,8 @@ Analyze the media in conjunction with this context and provide your Strategic Jo
 
     // Validate and clamp price breakdown
     if (
-      typeof analysis.price_breakdown.range_low !== "number" ||
-      typeof analysis.price_breakdown.range_high !== "number" ||
-      !Array.isArray(analysis.price_breakdown.assumptions) ||
+      !Array.isArray(analysis.price_breakdown.scenarios) ||
+      analysis.price_breakdown.scenarios.length !== 3 ||
       !Array.isArray(analysis.price_breakdown.variables)
     ) {
       return {
@@ -475,15 +497,24 @@ Analyze the media in conjunction with this context and provide your Strategic Jo
       };
     }
 
-    // Ensure price values are valid
-    analysis.price_breakdown.range_low = Math.max(
-      0,
-      Math.round(analysis.price_breakdown.range_low)
-    );
-    analysis.price_breakdown.range_high = Math.max(
-      analysis.price_breakdown.range_low,
-      Math.round(analysis.price_breakdown.range_high)
-    );
+    // Validate each scenario
+    const expectedLabels = ["Best Case", "Most Likely", "Worst Case"];
+    for (let i = 0; i < 3; i++) {
+      const scenario = analysis.price_breakdown.scenarios[i];
+      if (
+        !expectedLabels.includes(scenario.label) ||
+        typeof scenario.price !== "number" ||
+        typeof scenario.description !== "string"
+      ) {
+        return {
+          success: false,
+          error: "Invalid scenario structure in price breakdown",
+        };
+      }
+
+      // Ensure price is valid and non-negative
+      scenario.price = Math.max(0, Math.round(scenario.price));
+    }
 
     return {
       success: true,

@@ -86,13 +86,20 @@ export interface ScopeHypothesis {
 }
 
 /**
- * Price breakdown with assumptions and variables
+ * Single pricing scenario (Best Case, Most Likely, Worst Case)
+ */
+export interface PriceScenario {
+  label: "Best Case" | "Most Likely" | "Worst Case";
+  price: number; // Dollar amount for this scenario
+  description: string; // Why this scenario applies
+}
+
+/**
+ * Price breakdown with 3 scenarios and variables
  */
 export interface PriceBreakdown {
-  range_low: number;
-  range_high: number;
-  assumptions: string[]; // List of pricing assumptions
-  variables: string[]; // Factors that could change the price
+  scenarios: PriceScenario[]; // Always 3 scenarios: Best Case, Most Likely, Worst Case
+  variables: string[]; // Factors that could increase/decrease cost
 }
 
 /**

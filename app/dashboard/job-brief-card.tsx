@@ -39,7 +39,7 @@ interface JobBriefCardProps {
       file_type: string;
     }>;
   };
-  onStatusChange: (status: string) => void;
+  onStatusChange: (status: "new" | "pending" | "analyzed" | "reviewed" | "quoted" | "completed" | "archived") => void;
   onDelete: () => void;
 }
 

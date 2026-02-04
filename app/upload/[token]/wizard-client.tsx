@@ -95,8 +95,8 @@ export function GuidedCaptureWizard({
         fileUrls.push(url);
       }
 
-      // Step 2: Analyze with AI
-      setLoadingMessage("AI is analyzing your project... This may take 30-60 seconds.");
+      // Step 2: Analyze project
+      setLoadingMessage("Processing your submission... This may take 30-60 seconds.");
 
       // Build capture data
       const captureData: CaptureData = {
@@ -183,9 +183,9 @@ export function GuidedCaptureWizard({
             </p>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
               <p className="text-sm text-gray-700">
-                Our AI has analyzed your submission and generated a detailed assessment.
-                The contractor will use this to provide you with accurate guidance and
-                pricing.
+                Your submission has been received and a detailed assessment has been
+                generated. The contractor will use this to provide you with accurate
+                guidance and pricing.
               </p>
             </div>
           </Card>

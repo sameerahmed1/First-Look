@@ -28,11 +28,20 @@ CREATE TABLE projects (
   contractor_id UUID NOT NULL REFERENCES contractors(id) ON DELETE CASCADE,
   upload_link_id UUID REFERENCES upload_links(id) ON DELETE SET NULL,
   customer_name TEXT NOT NULL,
+  customer_email TEXT,
+  customer_phone TEXT,
+  customer_address JSONB, -- {street, city, state, zip}
   project_name TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'analyzed', 'quoted', 'completed')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('new', 'pending', 'analyzed', 'reviewed', 'quoted', 'completed', 'archived')),
+  capture_data JSONB, -- Structured homeowner input from Guided Wizard
+  ai_analysis JSONB, -- Structured AI output for Job Brief
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migration: Add customer_address column to existing projects table
+-- Run this if you have an existing database:
+-- ALTER TABLE projects ADD COLUMN IF NOT EXISTS customer_address JSONB;
 
 -- Project media table (stores uploaded files)
 CREATE TABLE project_media (

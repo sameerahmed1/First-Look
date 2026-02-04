@@ -58,6 +58,16 @@ export interface ContextInfo {
 }
 
 /**
+ * Customer address information (Step E of Wizard)
+ */
+export interface CustomerAddress {
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+}
+
+/**
  * Complete capture data from Guided Capture Wizard (stored in projects.capture_data)
  */
 export interface CaptureData {
@@ -134,6 +144,7 @@ export interface Project {
   customer_name: string;
   customer_email: string | null;
   customer_phone: string | null;
+  customer_address: CustomerAddress | null;
   project_name: string;
   status: "new" | "pending" | "analyzed" | "reviewed" | "quoted" | "completed" | "archived";
   capture_data: CaptureData | null; // Structured homeowner input from Guided Wizard

@@ -3,7 +3,7 @@
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase-server";
 import { analyzeMultipleMedia, analyzeProjectWithContext } from "./analyze-media";
 import { revalidatePath } from "next/cache";
-import type { CaptureData } from "@/types";
+import type { CaptureData, CustomerAddress } from "@/types";
 
 interface CreateProjectInput {
   contractorId: string;
@@ -183,6 +183,7 @@ interface CreateProjectWithWizardInput {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  customerAddress: CustomerAddress;
   captureData: CaptureData;
   fileUrls: string[]; // Already uploaded to Supabase Storage by client
 }
@@ -220,6 +221,7 @@ export async function createProjectWithWizard(input: CreateProjectWithWizardInpu
         customer_name: input.customerName,
         customer_email: input.customerEmail,
         customer_phone: input.customerPhone,
+        customer_address: input.customerAddress,
         project_name: projectName,
         status: "new", // New projects start as "new"
         capture_data: input.captureData,

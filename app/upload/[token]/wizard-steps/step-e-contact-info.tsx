@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { User, Mail, Phone, Calendar, X } from "lucide-react";
+import { User, Mail, Phone, MapPin, Calendar, X } from "lucide-react";
+import type { CustomerAddress } from "@/types";
 
 interface StepE_ContactInfoProps {
   customerName: string;
@@ -10,6 +11,8 @@ interface StepE_ContactInfoProps {
   onCustomerEmailChange: (value: string) => void;
   customerPhone: string;
   onCustomerPhoneChange: (value: string) => void;
+  customerAddress: CustomerAddress;
+  onCustomerAddressChange: (address: CustomerAddress) => void;
   availability: string[];
   onAvailabilityChange: (slots: string[]) => void;
 }
@@ -41,6 +44,14 @@ const TIME_SLOTS = [
   "Evening (5pm-8pm)",
 ];
 
+const US_STATES = [
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
+  "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
+  "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
+  "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
+  "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+];
+
 export function StepE_ContactInfo({
   customerName,
   onCustomerNameChange,
@@ -48,6 +59,8 @@ export function StepE_ContactInfo({
   onCustomerEmailChange,
   customerPhone,
   onCustomerPhoneChange,
+  customerAddress,
+  onCustomerAddressChange,
   availability,
   onAvailabilityChange,
 }: StepE_ContactInfoProps) {
@@ -141,6 +154,85 @@ export function StepE_ContactInfo({
         <p className="mt-2 text-sm text-muted-foreground">
           Include area code. This is the best number to reach you.
         </p>
+      </div>
+
+      {/* Address Section */}
+      <div className="space-y-4">
+        <label className="block text-sm font-medium text-foreground">
+          <MapPin className="inline h-4 w-4 mr-1" />
+          Property Address <span className="text-red-500">*</span>
+        </label>
+        <p className="text-sm text-muted-foreground -mt-2">
+          The address where the repair work is needed.
+        </p>
+
+        {/* Street Address */}
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground mb-1">
+            Street Address
+          </label>
+          <input
+            type="text"
+            required
+            placeholder="123 Main Street"
+            value={customerAddress.street}
+            onChange={(e) => onCustomerAddressChange({ ...customerAddress, street: e.target.value })}
+            className="w-full px-4 py-3 border border-input rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-primary"
+          />
+        </div>
+
+        {/* City, State, ZIP Row */}
+        <div className="grid grid-cols-6 gap-3">
+          {/* City */}
+          <div className="col-span-3">
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              City
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="City"
+              value={customerAddress.city}
+              onChange={(e) => onCustomerAddressChange({ ...customerAddress, city: e.target.value })}
+              className="w-full px-3 py-3 border border-input rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-primary"
+            />
+          </div>
+
+          {/* State */}
+          <div className="col-span-1">
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              State
+            </label>
+            <select
+              required
+              value={customerAddress.state}
+              onChange={(e) => onCustomerAddressChange({ ...customerAddress, state: e.target.value })}
+              className="w-full px-2 py-3 border border-input rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-primary"
+            >
+              <option value="">--</option>
+              {US_STATES.map((state) => (
+                <option key={state} value={state}>
+                  {state}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* ZIP */}
+          <div className="col-span-2">
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              ZIP Code
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="12345"
+              value={customerAddress.zip}
+              onChange={(e) => onCustomerAddressChange({ ...customerAddress, zip: e.target.value })}
+              className="w-full px-3 py-3 border border-input rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-primary"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Availability Picker */}

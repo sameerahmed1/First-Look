@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import type { CaptureData, SafetyChecks, HomeInfo, ContextInfo } from "@/types";
+import type { CaptureData, SafetyChecks, HomeInfo, ContextInfo, CustomerAddress } from "@/types";
 import { StepA_ProblemType } from "./wizard-steps/step-a-problem-type";
 import { StepB_SafetyGate } from "./wizard-steps/step-b-safety-gate";
 import { StepC_MediaCapture } from "./wizard-steps/step-c-media-capture";
@@ -61,6 +61,12 @@ export function GuidedCaptureWizard({
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customerAddress, setCustomerAddress] = useState<CustomerAddress>({
+    street: "",
+    city: "",
+    state: "",
+    zip: "",
+  });
   const [availability, setAvailability] = useState<string[]>([]);
   const [loadingMessage, setLoadingMessage] = useState("");
 
@@ -108,6 +114,7 @@ export function GuidedCaptureWizard({
         customerName,
         customerEmail,
         customerPhone,
+        customerAddress,
         captureData,
         fileUrls,
       });
@@ -277,6 +284,8 @@ export function GuidedCaptureWizard({
               onCustomerEmailChange={setCustomerEmail}
               customerPhone={customerPhone}
               onCustomerPhoneChange={setCustomerPhone}
+              customerAddress={customerAddress}
+              onCustomerAddressChange={setCustomerAddress}
               availability={availability}
               onAvailabilityChange={setAvailability}
             />
@@ -339,7 +348,9 @@ export function GuidedCaptureWizard({
               (currentStep === "problem" && !problemType) ||
               (currentStep === "media" && uploadedFiles.length === 0) ||
               (currentStep === "contact" &&
-                (!customerName || !customerEmail || !customerPhone)) ||
+                (!customerName || !customerEmail || !customerPhone ||
+                 !customerAddress.street || !customerAddress.city ||
+                 !customerAddress.state || !customerAddress.zip)) ||
               isSubmitting
             }
           >
